@@ -81,7 +81,16 @@ const TodoList = () => {
   return (
     <div>
       {/* Add Todo Form - Single Line: calendar → input → category → priority → Add */}
-      <form onSubmit={handleSubmit} className="mb-4">
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && newTodo.trim()) {
+            e.preventDefault();
+            handleSubmit(e);
+          }
+        }}
+        className="mb-4"
+      >
         <div className="flex gap-2 items-center">
           {/* Calendar (optional, first) */}
           <div className="relative shrink-0" ref={calendarRef}>
