@@ -33,6 +33,7 @@ A beautiful, simple, and powerful note-taking and TODO management app designed t
 - **React 19** - Latest React with modern hooks and features
 - **TypeScript** - Type safety and better developer experience
 - **Tailwind CSS 4** - Utility-first CSS framework for rapid UI development
+- **Capacitor** - Hybrid native runtime: same codebase runs in **browser**, **Android**, and **iOS**
 
 ### State Management & Storage
 - **Zustand** - Lightweight state management (simpler than Redux!)
@@ -105,6 +106,32 @@ The production-ready files will be in the `dist` folder.
 npm run preview
 ```
 
+### Run as hybrid app (Android / iOS)
+
+The app is a **hybrid application**: one codebase for web and native.
+
+- **Browser:** `npm run dev` or `npm run build` + `npm run preview`
+- **Android:** Build the web app, sync to native, then open in Android Studio:
+  ```bash
+  npm run build:mobile
+  npm run cap:android
+  ```
+- **iOS:** Same flow, then open in Xcode (macOS only, requires Xcode and CocoaPods):
+  ```bash
+  npm run build:mobile
+  npm run cap:ios
+  ```
+
+**Scripts:**
+- `npm run build:mobile` — Builds the web app and copies it into the native projects (`dist` → `android` / `ios`).
+- `npm run cap:sync` — Copies web assets and config into native projects (run after changes to `capacitor.config.ts` or plugins).
+- `npm run cap:android` — Opens the Android project in Android Studio.
+- `npm run cap:ios` — Opens the iOS project in Xcode.
+
+**Requirements:**
+- **Android:** [Android Studio](https://developer.android.com/studio) and Android SDK.
+- **iOS:** macOS, [Xcode](https://developer.apple.com/xcode/), and [CocoaPods](https://cocoapods.org/) (`sudo gem install cocoapods`).
+
 ## 📂 Project Structure
 
 ```
@@ -119,6 +146,9 @@ my-notepad/
 │   ├── index.css           # Global styles (Tailwind)
 │   └── main.tsx            # App entry point
 ├── public/                 # Static assets
+├── android/                 # Capacitor Android native project
+├── ios/                     # Capacitor iOS native project
+├── capacitor.config.ts     # Capacitor config (app id, name, web dir)
 ├── tailwind.config.js      # Tailwind configuration
 ├── postcss.config.js       # PostCSS configuration
 ├── vite.config.ts          # Vite configuration
@@ -146,7 +176,6 @@ my-notepad/
 - Search functionality
 - Export to PDF/Markdown
 - Cloud sync (optional backend)
-- Mobile app version
 - Dark mode
 - Keyboard shortcuts
 - Drag & drop reordering

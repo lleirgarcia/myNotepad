@@ -38,7 +38,7 @@ See [1-objectives.md](./1-objectives.md) for the full story and motivation.
 
 | Path | Description |
 |------|-------------|
-| `my-notepad/` | Main app (React + Vite + TypeScript) |
+| `my-notepad/` | Main app (React + Vite + TypeScript). **Hybrid:** runs in browser, Android, and iOS via Capacitor. |
 | `1-objectives.md` | Why this app exists and what it’s for |
 
 ---

@@ -2,10 +2,16 @@
 
 * {
   border-color: theme(colors.slate.700);
+  box-sizing: border-box;
 }
 
 button {
   cursor: pointer;
+}
+
+html {
+  /* Prevent overscroll / rubber-band on iOS */
+  overscroll-behavior: none;
 }
 
 body {
@@ -16,8 +22,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile browsers */
   background-color: theme(colors.slate.950);
   color: theme(colors.slate.50);
+  /* Prevent horizontal overflow on mobile */
+  overflow-x: hidden;
+}
+
+/* Safe area insets: notch, home indicator, rounded corners (iPhone, Android) */
+.app-safe-area {
+  padding-top: max(1.5rem, env(safe-area-inset-top, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Custom scrollbar */

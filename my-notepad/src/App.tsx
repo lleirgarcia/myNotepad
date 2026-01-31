@@ -8,8 +8,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<'todos' | 'notes'>('todos');
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="min-h-screen bg-slate-950 app-safe-area">
+      <div className="container mx-auto px-4 py-6 max-w-4xl w-full">
         {/* Header */}
         <header className="mb-8 pt-2">
           <h1 className="text-3xl font-bold text-slate-50 mb-1 tracking-tight">
@@ -61,7 +61,7 @@ function App() {
           id={activeTab === 'todos' ? 'todos-panel' : 'notes-panel'}
           role="tabpanel"
           aria-labelledby={activeTab === 'todos' ? 'todos-tab' : 'notes-tab'}
-          className="bg-slate-900 rounded-lg border border-slate-800 p-6 shadow-sm transition-opacity duration-150"
+          className="bg-slate-900 rounded-lg border border-slate-800 p-4 sm:p-6 shadow-sm transition-opacity duration-150 min-w-0 overflow-x-hidden"
         >
           {activeTab === 'todos' ? <TodoList /> : <NotesList />}
         </div>

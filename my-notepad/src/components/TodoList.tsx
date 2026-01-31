@@ -91,7 +91,7 @@ const TodoList = () => {
         }}
         className="mb-4"
       >
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center min-w-0">
           {/* Calendar (optional, first) */}
           <div className="relative shrink-0" ref={calendarRef}>
             <button
