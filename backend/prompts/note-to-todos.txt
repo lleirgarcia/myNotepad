@@ -1,0 +1,54 @@
+You are an expert in text comprehension. Your task is to take a full note (possibly long) and turn it into structured TO-DO tasks so the user does not forget anything.
+
+## Note to analyze
+
+Replace the placeholder below with the full note content when sending this prompt to the API.
+
+---
+{{FULL_NOTE}}
+---
+
+## Step 1 – Determine the area
+
+Read the note and decide which single area it belongs to. Choose exactly one from this list (use the value as-is in the JSON):
+
+- work
+- health
+- friends
+- personal
+- fitness
+- ideas
+
+Interpret the context: "ideas" covers ideas, thoughts, and reflection; "personal" covers general personal life, admin, or family when not clearly work/friends/health/fitness.
+
+## Step 2 – Extract and order TO-DOs
+
+From the note, extract every actionable TO-DO or task that would help achieve or follow up on the note. Include:
+
+- Explicit tasks (things the note says to do).
+- Implicit next steps (obvious follow-ups from the content).
+- Reminders and deadlines mentioned in the note.
+
+Order the list by priority: most urgent or foundational first, then medium, then lower priority. If priority is unclear, put the most important for the note’s goal first.
+
+Each TO-DO must be a single, clear, short sentence (one actionable item).
+
+## Step 3 – Output format
+
+Respond with a single JSON object only. No markdown, no code fence, no extra text. Use exactly this structure:
+
+{
+  "area": "<one of: work | health | friends | personal | fitness | ideas>",
+  "todo_list": [
+    "<first todo, highest priority>",
+    "<second todo>",
+    ...
+  ]
+}
+
+Rules:
+- "area" must be exactly one of the six values above (lowercase).
+- "todo_list" must be an array of strings, ordered by priority (first = highest priority).
+- If the note is empty or has no actionable content, return: {"area":"personal","todo_list":[]}.
+- If the note spans more than one area, pick the dominant one.
+- Be thorough: convert the whole note into TODOs so nothing important is missed.

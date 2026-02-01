@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Plus, Trash2, Circle, CheckCircle2, Briefcase, Heart, Users, Home, Dumbbell, Lightbulb, Calendar, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { useStore } from '../store/useStore';
+import * as backendApi from '../lib/backend-api';
 import { cn } from '../lib/utils';
 
 function formatDueDate(ts: number): string {
@@ -25,6 +27,8 @@ const COLORS = [
   { id: 'cyan' as const, label: 'Cyan priority', color: 'bg-cyan-500', ring: 'ring-cyan-500', hover: 'hover:bg-cyan-600' },
 ];
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL?.trim() || '';
+
 const TodoList = () => {
   const [newTodo, setNewTodo] = useState('');
   const [selectedColor, setSelectedColor] = useState<'red' | 'yellow' | 'cyan'>('cyan');
@@ -32,8 +36,22 @@ const TodoList = () => {
   const [dueDate, setDueDate] = useState<number | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [addLoading, setAddLoading] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
-  const { todos, addTodo, toggleTodo, deleteTodo } = useStore();
+  const todoInputRef = useRef<HTMLInputElement>(null);
+  const { todos, addTodo, updateTodo, removeTodo } = useStore();
+
+  const handleTodoInputFocus = () => {
+    console.log('[Keyboard Debug] Todo input focused');
+    // On iOS, programmatic scrollIntoView can make the system resign first responder and hide the keyboard.
+    // Only scroll on web so the keyboard stays visible on native.
+    if (!Capacitor.isNativePlatform()) {
+      setTimeout(() => {
+        todoInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -54,13 +72,39 @@ const TodoList = () => {
     setDueDate(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newTodo.trim()) {
-      addTodo(newTodo, selectedColor, selectedCategory, dueDate);
+    if (!newTodo.trim()) return;
+    setSyncError(null);
+    setAddLoading(true);
+    try {
+      if (!backendUrl) {
+        const localTodo = {
+          id: crypto.randomUUID(),
+          text: newTodo.trim(),
+          completed: false,
+          color: selectedColor,
+          category: selectedCategory,
+          dueDate: dueDate ?? null,
+          createdAt: Date.now(),
+        };
+        addTodo(localTodo);
+      } else {
+        const todo = await backendApi.createTodo({
+          text: newTodo.trim(),
+          color: selectedColor,
+          category: selectedCategory,
+          dueDate,
+        });
+        addTodo(todo);
+      }
       setNewTodo('');
       setSelectedColor('cyan');
       setDueDate(null);
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : 'Failed to add task');
+    } finally {
+      setAddLoading(false);
     }
   };
 
@@ -79,7 +123,7 @@ const TodoList = () => {
   const activeTodos = todos.filter(t => !t.completed).length;
 
   return (
-    <div>
+    <div className="min-w-0 max-w-full overflow-hidden">
       {/* Add Todo Form - Single Line: calendar → input → category → priority → Add */}
       <form
         onSubmit={handleSubmit}
@@ -89,102 +133,114 @@ const TodoList = () => {
             handleSubmit(e);
           }
         }}
-        className="mb-4"
+        className="mb-4 min-w-0 max-w-full"
       >
-        <div className="flex flex-wrap gap-2 items-center min-w-0">
-          {/* Calendar (optional, first) */}
-          <div className="relative shrink-0" ref={calendarRef}>
-            <button
-              type="button"
-              onClick={() => setCalendarOpen((o) => !o)}
-              aria-label={dueDate ? `Due: ${formatDueDate(dueDate)}. Click to change` : 'Add due date (optional)'}
-              title={dueDate ? formatDueDate(dueDate) : 'Pick a date (optional)'}
-              className={cn(
-                'flex items-center gap-1.5 h-9 px-2.5 rounded-md border transition-colors',
-                dueDate
-                  ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                  : 'border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-              )}
-            >
-              <Calendar className="w-4 h-4" />
-              {dueDate && <span className="text-xs font-medium max-w-[4rem] truncate">{formatDueDate(dueDate)}</span>}
-            </button>
-            {calendarOpen && (
-              <div className="absolute left-0 top-full mt-1 z-20 flex flex-col gap-2">
-                <div className="datepicker-dark bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2">
-                  <DatePicker
-                    selected={dueDate ? new Date(dueDate) : null}
-                    onChange={handleDateChange}
-                    inline
-                    showMonthDropdown
-                    showYearDropdown
-                    dropdownMode="select"
-                    dateFormat="MMM d, yyyy"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleClearDate}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 text-xs"
-                >
-                  <X className="w-3 h-3" />
-                  Clear date
-                </button>
-              </div>
-            )}
-          </div>
-          {/* Text input */}
+        {syncError && (
+          <p className="mb-2 text-sm text-red-400" role="alert">
+            {syncError}
+          </p>
+        )}
+        {/* Mobile/iPhone (< 768px): input first line only, rest below. Desktop: calendar | input | category | priority | Add */}
+        <div className="flex flex-col md:flex-row gap-2 w-full min-w-0 max-w-full">
+          {/* Text input: row 1 on mobile, middle on desktop. 16px font prevents iOS zoom. */}
           <input
+            ref={todoInputRef}
             type="text"
             value={newTodo}
             onChange={(e) => setNewTodo(e.target.value)}
+            onFocus={handleTodoInputFocus}
             placeholder="What needs to be done?"
-            className="flex-1 min-w-0 px-3 py-2 bg-slate-950 border border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-100 placeholder:text-slate-600 text-sm"
+            autoComplete="off"
+            autoCapitalize="sentences"
+            inputMode="text"
+            enterKeyHint="done"
+            className="order-1 md:order-2 w-full md:flex-1 md:min-w-0 px-3 py-3 md:py-2 bg-slate-950 border border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-100 placeholder:text-slate-500 text-[16px] md:text-sm box-border"
           />
-          {/* Category (second) */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            aria-label="Category"
-            className="shrink-0 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {CATEGORIES.map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.label}</option>
-            ))}
-          </select>
-          {/* Priority: rectangle with divided color buttons (last) */}
-          <div className="shrink-0 flex items-stretch border border-slate-700 rounded-md overflow-hidden bg-slate-800">
-            {COLORS.map((color, i) => (
+          {/* Row 2 on mobile: calendar, category, priority, Add. On desktop: inline with input. */}
+          <div className="order-2 md:contents flex flex-wrap gap-2 items-center min-w-0 w-full md:w-auto">
+            <div className="relative shrink-0 md:order-1" ref={calendarRef}>
               <button
-                key={color.id}
                 type="button"
-                onClick={() => setSelectedColor(color.id)}
-                aria-label={color.label}
-                title={color.label}
+                onClick={() => setCalendarOpen((o) => !o)}
+                aria-label={dueDate ? `Due: ${formatDueDate(dueDate)}. Click to change` : 'Add due date (optional)'}
+                title={dueDate ? formatDueDate(dueDate) : 'Pick a date (optional)'}
                 className={cn(
-                  'flex-1 min-w-[2rem] h-9 transition-all',
-                  color.color,
-                  color.hover,
-                  selectedColor === color.id && 'ring-2 ring-inset ring-white/50',
-                  i > 0 && 'border-l border-slate-600'
+                  'flex items-center gap-1 md:gap-1.5 h-9 px-2 md:px-2.5 rounded-md border transition-colors shrink-0',
+                  dueDate
+                    ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                    : 'border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-600'
                 )}
-              />
-            ))}
+              >
+                <Calendar className="w-4 h-4 shrink-0" />
+                {dueDate && <span className="text-xs font-medium max-w-[3.5rem] md:max-w-[4rem] truncate hidden md:inline" title={formatDueDate(dueDate)}>{formatDueDate(dueDate)}</span>}
+              </button>
+              {calendarOpen && (
+                <div className="absolute left-0 top-full mt-1 z-20 flex flex-col gap-2">
+                  <div className="datepicker-dark bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2">
+                    <DatePicker
+                      selected={dueDate ? new Date(dueDate) : null}
+                      onChange={handleDateChange}
+                      inline
+                      showMonthDropdown
+                      showYearDropdown
+                      dropdownMode="select"
+                      dateFormat="MMM d, yyyy"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearDate}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 text-xs"
+                  >
+                    <X className="w-3 h-3" />
+                    Clear date
+                  </button>
+                </div>
+              )}
+            </div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              aria-label="Category"
+              className="shrink-0 md:order-3 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {CATEGORIES.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.label}</option>
+              ))}
+            </select>
+            <div className="shrink-0 md:order-4 flex items-stretch border border-slate-700 rounded-md overflow-hidden bg-slate-800">
+              {COLORS.map((color, i) => (
+                <button
+                  key={color.id}
+                  type="button"
+                  onClick={() => setSelectedColor(color.id)}
+                  aria-label={color.label}
+                  title={color.label}
+                  className={cn(
+                    'flex-1 min-w-[2rem] h-9 transition-all',
+                    color.color,
+                    color.hover,
+                    selectedColor === color.id && 'ring-2 ring-inset ring-white/50',
+                    i > 0 && 'border-l border-slate-600'
+                  )}
+                />
+              ))}
+            </div>
+            <button
+              type="submit"
+              disabled={addLoading}
+              aria-label="Add task"
+              className="shrink-0 md:order-5 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-4 h-4" />
+              {addLoading ? 'Adding…' : 'Add'}
+            </button>
           </div>
-          {/* Add button */}
-          <button
-            type="submit"
-            aria-label="Add task"
-            className="shrink-0 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center gap-1.5 text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Add
-          </button>
         </div>
       </form>
 
       {/* Category Filter */}
-      <div className="flex gap-2 mb-4 flex-wrap" role="group" aria-label="Filter tasks by category">
+      <div className="flex gap-1.5 sm:gap-2 mb-4 flex-wrap min-w-0 max-w-full" role="group" aria-label="Filter tasks by category">
         <button
           onClick={() => setFilterCategory(null)}
           aria-pressed={filterCategory === null}
@@ -252,7 +308,18 @@ const TodoList = () => {
                 
                 {/* Checkbox */}
                 <button
-                  onClick={() => toggleTodo(todo.id)}
+                  onClick={async () => {
+                    if (!backendUrl) {
+                      updateTodo({ ...todo, completed: !todo.completed });
+                      return;
+                    }
+                    try {
+                      const updated = await backendApi.updateTodo(todo.id, { completed: !todo.completed });
+                      updateTodo(updated);
+                    } catch {
+                      setSyncError('Failed to update');
+                    }
+                  }}
                   className="flex-shrink-0"
                   aria-label={todo.completed ? 'Mark incomplete' : 'Mark complete'}
                   aria-pressed={todo.completed}
@@ -293,7 +360,18 @@ const TodoList = () => {
 
                 {/* Delete Button */}
                 <button
-                  onClick={() => deleteTodo(todo.id)}
+                  onClick={async () => {
+                    if (!backendUrl) {
+                      removeTodo(todo.id);
+                      return;
+                    }
+                    try {
+                      await backendApi.deleteTodo(todo.id);
+                      removeTodo(todo.id);
+                    } catch {
+                      setSyncError('Failed to delete');
+                    }
+                  }}
                   aria-label="Delete task"
                   className="flex-shrink-0 p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded opacity-0 group-hover:opacity-100 transition-all"
                 >
