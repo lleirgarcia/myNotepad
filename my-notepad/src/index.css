@@ -22,11 +22,26 @@ button {
 input, textarea, select {
   max-width: 100%;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* iPhone/Safari: ensure no focus ring or tap highlight */
+@supports (-webkit-touch-callout: none) {
+  input:focus, textarea:focus, select:focus {
+    outline: none !important;
+    -webkit-box-shadow: none !important;
+    box-shadow: none !important;
+  }
 }
 
 html {
-  /* Prevent overscroll / rubber-band on iOS */
+  /* Prevent overscroll / rubber-band on iOS so scrolling to top doesn't refresh the app */
   overscroll-behavior: none;
+  overscroll-behavior-y: none;
   overflow-x: hidden;
   width: 100%;
   max-width: 100%;
@@ -47,13 +62,17 @@ body {
   width: 100%;
   max-width: 100%;
   position: relative;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
-/* Root app container: no horizontal scroll on iPhone */
+/* Root app container: no horizontal scroll on iPhone, prevent pull-to-refresh */
 #root {
   overflow-x: hidden;
   max-width: 100%;
   min-width: 0;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 /* Safe area insets: notch, home indicator, rounded corners (iPhone, Android) */

@@ -7,6 +7,8 @@ export interface Todo {
   color: 'red' | 'yellow' | 'cyan';
   category: string;
   dueDate?: number | null;
+  noteId?: string | null;
+  noteTitle?: string | null;
   createdAt: number;
 }
 

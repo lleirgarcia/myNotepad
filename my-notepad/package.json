@@ -16,6 +16,7 @@
     "cap:ios": "npx cap open ios"
   },
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^6.0.1",
     "@capacitor/core": "^6.1.2",
     "@capacitor/keyboard": "^6.0.4",
     "@supabase/supabase-js": "^2.93.3",
