@@ -42,9 +42,12 @@ Paste and run the contents of:
 
 That creates:
 
-- `todos` – one row per task, scoped by `user_id`
+- `notes` – one row per note (id, title, content), scoped by `user_id`
+- `todos` – one row per task, scoped by `user_id`; optional `note_id` links to the note they were created from
 - `whiteboard` – one row per user for your notes
 - Row Level Security so each user only sees their own data
+
+If you already have `todos` and `whiteboard` from before notes existed, run **`supabase/migrations/002_notes_and_todo_note_id.sql`** in the SQL Editor to add the `notes` table and `todos.note_id`.
 
 ## 5. Run the app
 
