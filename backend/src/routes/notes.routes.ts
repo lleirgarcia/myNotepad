@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getSupabaseAdmin } from '../lib/supabase.js';
 import type { RequestWithUserId } from '../middleware/apiKeyAuth.js';
 
-const todosRouter = Router();
+const notesRouter = Router();
 
 function getUserId(req: Request): string {
   return (req as RequestWithUserId).userId;
@@ -20,46 +20,36 @@ function handleSupabaseError(res: Response, error: { message?: string }): boolea
   return true;
 }
 
-function mapRowToTodo(row: {
+function mapRowToNote(row: {
   id: string;
-  text: string;
-  completed: boolean;
-  color: string;
-  category: string;
-  due_date: string | null;
-  note_id: string | null;
+  title: string;
+  content: string;
   created_at: string;
-  notes?: { title: string } | null;
 }) {
   return {
     id: row.id,
-    text: row.text,
-    completed: row.completed,
-    color: row.color,
-    category: row.category,
-    dueDate: row.due_date ? new Date(row.due_date).getTime() : null,
-    noteId: row.note_id ?? null,
-    noteTitle: row.notes?.title ?? null,
+    title: row.title,
+    content: row.content,
     createdAt: new Date(row.created_at).getTime(),
   };
 }
 
-todosRouter.get('/', async (req: Request, res: Response): Promise<void> => {
+notesRouter.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = getUserId(req);
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
-      .from('todos')
-      .select('*, notes(title)')
+      .from('notes')
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (error) {
       handleSupabaseError(res, error);
       return;
     }
-    res.json((data ?? []).map(mapRowToTodo));
+    res.json((data ?? []).map(mapRowToNote));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Failed to fetch todos';
+    const msg = e instanceof Error ? e.message : 'Failed to fetch notes';
     if (msg.includes('fetch failed')) {
       res.status(503).json({
         error: 'Cannot reach Supabase. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend .env, and that the backend can reach the internet.',
@@ -70,38 +60,60 @@ todosRouter.get('/', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-todosRouter.post('/', async (req: Request, res: Response): Promise<void> => {
+notesRouter.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = getUserId(req);
-    const body = req.body as {
-      text?: string;
-      color?: string;
-      category?: string;
-      dueDate?: number | null;
-      noteId?: string | null;
-    };
-    if (!body.text?.trim()) {
-      res.status(400).json({ error: 'text required' });
+    const id = req.params.id;
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) {
+      handleSupabaseError(res, error);
+      return;
+    }
+    if (!data) {
+      res.status(404).json({ error: 'Note not found' });
+      return;
+    }
+    res.json(mapRowToNote(data));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed to fetch note';
+    if (msg.includes('fetch failed')) {
+      res.status(503).json({
+        error: 'Cannot reach Supabase. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend .env, and that the backend can reach the internet.',
+      });
+      return;
+    }
+    res.status(500).json({ error: msg });
+  }
+});
+
+notesRouter.post('/', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = getUserId(req);
+    const body = req.body as { title?: string; content?: string };
+    if (!body.title?.trim()) {
+      res.status(400).json({ error: 'title required' });
       return;
     }
     const supabase = getSupabaseAdmin();
     const row = {
       user_id: userId,
-      text: body.text.trim(),
-      completed: false,
-      color: body.color ?? 'cyan',
-      category: body.category ?? 'work',
-      due_date: body.dueDate ? new Date(body.dueDate).toISOString() : null,
-      note_id: body.noteId?.trim() || null,
+      title: body.title.trim(),
+      content: typeof body.content === 'string' ? body.content : '',
     };
-    const { data, error } = await supabase.from('todos').insert(row).select('*, notes(title)').single();
+    const { data, error } = await supabase.from('notes').insert(row).select().single();
     if (error) {
       handleSupabaseError(res, error);
       return;
     }
-    res.status(201).json(mapRowToTodo(data));
+    res.status(201).json(mapRowToNote(data));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Failed to create todo';
+    const msg = e instanceof Error ? e.message : 'Failed to create note';
     if (msg.includes('fetch failed')) {
       res.status(503).json({
         error: 'Cannot reach Supabase. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend .env.',
@@ -112,21 +124,21 @@ todosRouter.post('/', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-todosRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => {
+notesRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = getUserId(req);
     const id = req.params.id;
-    const body = req.body as { completed?: boolean; text?: string };
+    const body = req.body as { title?: string; content?: string };
     const update: Record<string, unknown> = {};
-    if (typeof body.completed === 'boolean') update.completed = body.completed;
-    if (typeof body.text === 'string') update.text = body.text;
+    if (typeof body.title === 'string') update.title = body.title.trim();
+    if (typeof body.content === 'string') update.content = body.content;
     if (Object.keys(update).length === 0) {
       res.status(400).json({ error: 'No updates provided' });
       return;
     }
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
-      .from('todos')
+      .from('notes')
       .update(update)
       .eq('id', id)
       .eq('user_id', userId)
@@ -136,9 +148,9 @@ todosRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => 
       handleSupabaseError(res, error);
       return;
     }
-    res.json(mapRowToTodo(data));
+    res.json(mapRowToNote(data));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Failed to update todo';
+    const msg = e instanceof Error ? e.message : 'Failed to update note';
     if (msg.includes('fetch failed')) {
       res.status(503).json({
         error: 'Cannot reach Supabase. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend .env.',
@@ -149,19 +161,19 @@ todosRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => 
   }
 });
 
-todosRouter.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+notesRouter.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = getUserId(req);
     const id = req.params.id;
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from('todos').delete().eq('id', id).eq('user_id', userId);
+    const { error } = await supabase.from('notes').delete().eq('id', id).eq('user_id', userId);
     if (error) {
       handleSupabaseError(res, error);
       return;
     }
     res.status(204).send();
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Failed to delete todo';
+    const msg = e instanceof Error ? e.message : 'Failed to delete note';
     if (msg.includes('fetch failed')) {
       res.status(503).json({
         error: 'Cannot reach Supabase. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend .env.',
@@ -172,4 +184,4 @@ todosRouter.delete('/:id', async (req: Request, res: Response): Promise<void> =>
   }
 });
 
-export { todosRouter };
+export { notesRouter };

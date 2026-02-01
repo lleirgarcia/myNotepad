@@ -21,8 +21,9 @@ export type ChatCompletionResult = {
   };
 };
 
-/** Structured output when processing a note (summary, tags, action items). */
+/** Structured output when processing a note (title, summary, tags, action items). */
 export type NoteInsight = {
+  title: string;
   summary: string;
   tags: string[];
   actionItems: string[];
@@ -30,11 +31,12 @@ export type NoteInsight = {
 
 const NOTES_SYSTEM_PROMPT = `You are a notepad assistant. The user will send you a note (free-form text).
 Respond with a single JSON object only, no other text, with exactly these keys:
+- "title": string — a short title for the note, 3 to 4 words maximum (e.g. "YouTube course ideas").
 - "summary": string — one or two short sentences summarizing the note.
 - "tags": string[] — 0 to 5 short labels (e.g. work, idea, reminder). Lowercase, no spaces in a tag.
 - "actionItems": string[] — 0 to 5 concrete next steps or to-dos extracted from the note. Each item one short sentence.
 
-If the note is empty or meaningless, return: {"summary":"","tags":[],"actionItems":[]}.
+If the note is empty or meaningless, return: {"title":"","summary":"","tags":[],"actionItems":[]}.
 Keep everything concise.`;
 
 /**
@@ -125,6 +127,7 @@ export class OpenAIService {
 
     const obj = parsed as Record<string, unknown>;
     return {
+      title: typeof obj.title === 'string' ? obj.title.trim().slice(0, 80) : '',
       summary: typeof obj.summary === 'string' ? obj.summary : '',
       tags: Array.isArray(obj.tags)
         ? obj.tags.filter((t): t is string => typeof t === 'string').slice(0, 5)
