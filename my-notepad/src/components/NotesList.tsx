@@ -116,11 +116,14 @@ const NotesList = () => {
           let created = 0;
           const reversed = [...result.actionItems].reverse();
           if (backendUrl) {
-            const noteTitle = result.title?.trim() || 'Note';
+            // AI returns a short title (max 3–4 words); use it to identify the note
+            const shortTitleFromWords = (s: string) =>
+              s.trim().split(/\s+/).filter(Boolean).slice(0, 4).join(' ') || 'Note';
+            const noteTitle = shortTitleFromWords(result.title ?? '') || 'Note';
             let noteId: string | null = null;
             try {
               const note = await backendApi.createNote({
-                title: noteTitle.slice(0, 80),
+                title: noteTitle.slice(0, 50),
                 content,
               });
               noteId = note.id;

@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Plus, Trash2, Circle, CheckCircle2, Briefcase, Heart, Users, Home, Dumbbell, Lightbulb, Calendar, X, ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Circle, CheckCircle2, Briefcase, Heart, Users, Home, Dumbbell, Lightbulb, Calendar, X, ChevronDown, ChevronRight, ChevronUp, BookOpen } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
-import { useStore } from '../store/useStore';
+import { useStore, type Todo } from '../store/useStore';
 import * as backendApi from '../lib/backend-api';
 import { cn } from '../lib/utils';
 
@@ -27,6 +27,13 @@ const COLORS = [
   { id: 'cyan' as const, label: 'Cyan priority', color: 'bg-cyan-500', ring: 'ring-cyan-500', hover: 'hover:bg-cyan-600' },
 ];
 
+/** Priority order for sorting: red (highest) → yellow → cyan (lowest) */
+const COLOR_PRIORITY_ORDER: Record<'red' | 'yellow' | 'cyan', number> = {
+  red: 0,
+  yellow: 1,
+  cyan: 2,
+};
+
 const FILTER_DONE_ID = 'done';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL?.trim() || '';
@@ -46,7 +53,10 @@ const TodoList = () => {
   const completedTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const calendarRef = useRef<HTMLDivElement>(null);
   const todoInputRef = useRef<HTMLInputElement>(null);
-  const { todos, addTodo, updateTodo, removeTodo } = useStore();
+  const { todos, addTodo, updateTodo, removeTodo, removeTodosByNoteId } = useStore();
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const [openPriorityTodoId, setOpenPriorityTodoId] = useState<string | null>(null);
+  const priorityPopoverRef = useRef<HTMLDivElement>(null);
 
   // Only notes that have at least one active (incomplete) task
   const notesWithActiveTasks = useMemo(() => {
@@ -91,6 +101,16 @@ const TodoList = () => {
     if (calendarOpen) document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, [calendarOpen]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (priorityPopoverRef.current && !priorityPopoverRef.current.contains(e.target as Node)) {
+        setOpenPriorityTodoId(null);
+      }
+    }
+    if (openPriorityTodoId) document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openPriorityTodoId]);
 
   const handleDateChange = (date: Date | null) => {
     setDueDate(date ? date.getTime() : null);
@@ -165,15 +185,33 @@ const TodoList = () => {
       if (!map.has(key)) map.set(key, { title, todos: [] });
       map.get(key)!.todos.push(todo);
     }
+    // Sort todos within each group by priority: red → yellow → cyan, then by createdAt
+    for (const group of map.values()) {
+      group.todos.sort((a, b) => {
+        const pa = COLOR_PRIORITY_ORDER[a.color];
+        const pb = COLOR_PRIORITY_ORDER[b.color];
+        if (pa !== pb) return pa - pb;
+        return b.createdAt - a.createdAt;
+      });
+    }
+    // Sort note groups: notes with more high-priority (red) todos first, then yellow, then cyan
     const entries = Array.from(map.entries());
+    const priorityCounts = (key: string) => {
+      const todos = map.get(key)!.todos;
+      return {
+        red: todos.filter((t) => t.color === 'red').length,
+        yellow: todos.filter((t) => t.color === 'yellow').length,
+        cyan: todos.filter((t) => t.color === 'cyan').length,
+      };
+    };
     entries.sort(([a], [b]) => {
       if (a === '_no_note') return 1;
       if (b === '_no_note') return -1;
-      const groupA = map.get(a)!;
-      const groupB = map.get(b)!;
-      const maxA = Math.max(...groupA.todos.map((t) => t.createdAt));
-      const maxB = Math.max(...groupB.todos.map((t) => t.createdAt));
-      return maxB - maxA;
+      const ca = priorityCounts(a);
+      const cb = priorityCounts(b);
+      if (ca.red !== cb.red) return cb.red - ca.red;
+      if (ca.yellow !== cb.yellow) return cb.yellow - ca.yellow;
+      return cb.cyan - ca.cyan;
     });
     return entries;
   })();
@@ -185,6 +223,39 @@ const TodoList = () => {
       else next.add(key);
       return next;
     });
+  };
+
+  const handlePriorityChange = async (todo: Todo, newColor: 'red' | 'yellow' | 'cyan') => {
+    if (todo.color === newColor) {
+      setOpenPriorityTodoId(null);
+      return;
+    }
+    if (!backendUrl) {
+      updateTodo({ ...todo, color: newColor });
+      setOpenPriorityTodoId(null);
+      return;
+    }
+    try {
+      const updated = await backendApi.updateTodo(todo.id, { color: newColor });
+      updateTodo(updated);
+      setOpenPriorityTodoId(null);
+    } catch {
+      setSyncError('Failed to update priority');
+    }
+  };
+
+  const handleDeleteNoteSection = async (noteId: string) => {
+    if (!backendUrl || deletingNoteId) return;
+    setSyncError(null);
+    setDeletingNoteId(noteId);
+    try {
+      await backendApi.deleteNote(noteId);
+      removeTodosByNoteId(noteId);
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : 'Failed to delete note');
+    } finally {
+      setDeletingNoteId(null);
+    }
   };
 
   const colorConfig = {
@@ -213,21 +284,41 @@ const TodoList = () => {
             {syncError}
           </p>
         )}
-        {/* Input first, full width; then calendar, category, priority, Add */}
+        {/* Input with priority colors inside; then calendar, category, note, Add */}
         <div className="flex flex-col gap-2 w-full min-w-0 max-w-full">
-          <input
-            ref={todoInputRef}
-            type="text"
-            value={newTodo}
-            onChange={(e) => setNewTodo(e.target.value)}
-            onFocus={handleTodoInputFocus}
-            placeholder="What needs to be done?"
-            autoComplete="off"
-            autoCapitalize="sentences"
-            inputMode="text"
-            enterKeyHint="done"
-            className="w-full max-w-full min-w-0 px-3 py-3 bg-slate-950 border border-slate-700 rounded-md text-slate-100 placeholder:text-slate-500 text-[16px] md:text-sm box-border"
-          />
+          <div className="flex items-stretch min-h-[44px] min-w-0 w-full bg-slate-950 border border-slate-700 rounded-md overflow-hidden">
+            <div className="shrink-0 flex items-stretch w-[calc(2.25rem*3)] md:w-[calc(2rem*3)] border-r border-slate-700">
+              {COLORS.map((color, i) => (
+                <button
+                  key={color.id}
+                  type="button"
+                  onClick={() => setSelectedColor(color.id)}
+                  aria-label={color.label}
+                  title={color.label}
+                  className={cn(
+                    'flex-1 min-w-0 self-stretch transition-all',
+                    color.color,
+                    color.hover,
+                    selectedColor === color.id && 'ring-2 ring-inset ring-white/50',
+                    i > 0 && 'border-l border-slate-600'
+                  )}
+                />
+              ))}
+            </div>
+            <input
+              ref={todoInputRef}
+              type="text"
+              value={newTodo}
+              onChange={(e) => setNewTodo(e.target.value)}
+              onFocus={handleTodoInputFocus}
+              placeholder="What needs to be done?"
+              autoComplete="off"
+              autoCapitalize="sentences"
+              inputMode="text"
+              enterKeyHint="done"
+              className="flex-1 min-w-0 px-3 py-3 bg-transparent border-0 text-slate-100 placeholder:text-slate-500 text-[16px] md:text-sm focus:outline-none focus:ring-0"
+            />
+          </div>
           <div className="flex flex-wrap gap-2 items-center min-w-0 w-full">
             <div className="relative shrink-0" ref={calendarRef}>
               <button
@@ -293,24 +384,6 @@ const TodoList = () => {
                 ))}
               </select>
             )}
-            <div className="shrink-0 flex items-stretch min-h-[44px] h-11 md:h-9 border border-slate-700 rounded-md overflow-hidden bg-slate-800">
-              {COLORS.map((color, i) => (
-                <button
-                  key={color.id}
-                  type="button"
-                  onClick={() => setSelectedColor(color.id)}
-                  aria-label={color.label}
-                  title={color.label}
-                  className={cn(
-                    'flex-1 min-w-[2.25rem] md:min-w-[2rem] h-full transition-all',
-                    color.color,
-                    color.hover,
-                    selectedColor === color.id && 'ring-2 ring-inset ring-white/50',
-                    i > 0 && 'border-l border-slate-600'
-                  )}
-                />
-              ))}
-            </div>
             <button
               type="submit"
               disabled={addLoading}
@@ -384,6 +457,37 @@ const TodoList = () => {
             </span>
           )}
         </button>
+        {groupsByNote.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const allCollapsed = groupsByNote.every(([key]) => collapsedNoteIds.has(key));
+              if (allCollapsed) {
+                setCollapsedNoteIds(new Set());
+              } else {
+                setCollapsedNoteIds(new Set(groupsByNote.map(([key]) => key)));
+              }
+            }}
+            aria-label={groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? 'Expand all notes' : 'Collapse all notes'}
+            title={groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? 'Expand all notes' : 'Collapse all notes'}
+            className={cn(
+              'min-h-[44px] px-3 py-2.5 md:py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5',
+              'bg-slate-800 text-slate-400 hover:bg-slate-700'
+            )}
+          >
+            {groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? (
+              <>
+                <ChevronDown className="w-3 h-3" />
+                Expand all
+              </>
+            ) : (
+              <>
+                <ChevronUp className="w-3 h-3" />
+                Collapse all
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Todos List - Grouped by note (tree: note card → todos) */}
@@ -408,21 +512,63 @@ const TodoList = () => {
             const isCollapsed = collapsedNoteIds.has(noteKey);
             return (
               <div key={noteKey} className="rounded-lg border border-slate-700/60 bg-slate-800/30 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => toggleNoteGroup(noteKey)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-slate-300 hover:bg-slate-800/50 transition-colors"
-                  aria-expanded={!isCollapsed}
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
-                  )}
-                  <BookOpen className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
-                  <span className="font-medium text-sm truncate">{noteTitle}</span>
-                  <span className="ml-1 text-xs text-slate-500">({groupTodos.length})</span>
-                </button>
+                <div className="flex items-center min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => toggleNoteGroup(noteKey)}
+                    className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left text-slate-300 hover:bg-slate-800/50 transition-colors"
+                    aria-expanded={!isCollapsed}
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
+                    )}
+                    <BookOpen className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
+                    <span className="font-medium text-sm truncate">{noteTitle}</span>
+                    <span className="ml-1 text-xs text-slate-500 shrink-0">({groupTodos.length})</span>
+                  </button>
+                  <span className="flex items-center gap-1 shrink-0 px-1" aria-label="Tasks per priority">
+                    {(['red', 'yellow', 'cyan'] as const).map((color) => {
+                      const count = groupTodos.filter((t) => t.color === color).length;
+                      return (
+                        <span
+                          key={color}
+                          className={cn(
+                            'flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded text-[10px] font-medium text-white',
+                            color === 'red' && 'bg-red-500',
+                            color === 'yellow' && 'bg-yellow-500',
+                            color === 'cyan' && 'bg-cyan-500'
+                          )}
+                          title={`${color}: ${count}`}
+                        >
+                          {count}
+                        </span>
+                      );
+                    })}
+                  </span>
+                  {/* Same-width right column for all rows: bin or spacer so priority badges align */}
+                  <span className="shrink-0 w-10 min-w-[2.5rem] flex items-center justify-center">
+                    {backendUrl && noteKey !== '_no_note' ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteNoteSection(noteKey);
+                        }}
+                        disabled={deletingNoteId === noteKey}
+                        aria-label={`Delete note "${noteTitle}" and all ${groupTodos.length} tasks`}
+                        className="p-2 -m-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50 flex items-center justify-center"
+                      >
+                        {deletingNoteId === noteKey ? (
+                          <span className="text-xs">…</span>
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    ) : null}
+                  </span>
+                </div>
                 {!isCollapsed && (
                   <div className="space-y-1 px-2 pb-2 pt-0">
                     {groupTodos.map((todo) => {
@@ -436,8 +582,48 @@ const TodoList = () => {
                           todo.completed && 'opacity-50'
                         )}
                       >
-                {/* Color Indicator */}
-                <div className={cn('w-1 h-6 rounded-full flex-shrink-0', colorConfig[todo.color])} />
+                {/* Priority label – click to change color */}
+                <div className="relative flex-shrink-0" ref={openPriorityTodoId === todo.id ? priorityPopoverRef : undefined}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenPriorityTodoId((prev) => (prev === todo.id ? null : todo.id));
+                    }}
+                    aria-label="Change priority"
+                    title="Change priority"
+                    className={cn(
+                      'w-1 min-w-[4px] h-6 rounded-full flex-shrink-0 cursor-pointer transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:ring-offset-slate-800',
+                      colorConfig[todo.color]
+                    )}
+                  />
+                  {openPriorityTodoId === todo.id && (
+                    <div
+                      className="absolute left-0 top-full mt-1 z-30 flex gap-1.5 p-2 rounded-lg bg-slate-800 border border-slate-600 shadow-xl"
+                      role="listbox"
+                      aria-label="Priority colors"
+                    >
+                      {COLORS.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePriorityChange(todo, c.id);
+                          }}
+                          aria-label={c.label}
+                          title={c.label}
+                          className={cn(
+                            'w-6 h-6 rounded-full transition-all hover:scale-110',
+                            c.color,
+                            c.hover,
+                            todo.color === c.id && 'ring-2 ring-inset ring-white/50'
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
                 
                 {/* Checkbox - 44px touch target on mobile */}
                 <button

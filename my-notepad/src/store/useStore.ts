@@ -24,6 +24,7 @@ interface Store {
   addTodo: (todo: Todo) => void;
   updateTodo: (todo: Todo) => void;
   removeTodo: (id: string) => void;
+  removeTodosByNoteId: (noteId: string) => void;
   setWhiteboardContent: (content: string) => void;
 }
 
@@ -47,6 +48,11 @@ export const useStore = create<Store>()((set) => ({
   removeTodo: (id) =>
     set((state) => ({
       todos: state.todos.filter((t) => t.id !== id),
+    })),
+
+  removeTodosByNoteId: (noteId) =>
+    set((state) => ({
+      todos: state.todos.filter((t) => t.noteId !== noteId),
     })),
 
   setWhiteboardContent: (content) => set({ whiteboard: content }),

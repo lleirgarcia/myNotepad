@@ -79,7 +79,7 @@ export async function createTodo(todo: {
 
 export async function updateTodo(
   id: string,
-  updates: { completed?: boolean; text?: string }
+  updates: { completed?: boolean; text?: string; color?: Todo['color'] }
 ): Promise<Todo> {
   try {
     const res = await fetch(`${baseUrl}/api/todos/${id}`, {
@@ -140,6 +140,21 @@ export async function createNote(note: { title: string; content?: string }): Pro
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Failed to create note');
     return data as Note;
+  } catch (e) {
+    normalizeNetworkError(e);
+  }
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  try {
+    const res = await fetch(`${baseUrl}/api/notes/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as { error?: string }).error ?? 'Failed to delete note');
+    }
   } catch (e) {
     normalizeNetworkError(e);
   }
