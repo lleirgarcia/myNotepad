@@ -6,6 +6,7 @@ import { cn } from './lib/utils';
 import { useKeyboardDebug } from './hooks/useKeyboardDebug';
 import { useStore } from './store/useStore';
 import * as backendApi from './lib/backend-api';
+import notedLogo from './assets/noted-logo.png';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL?.trim() || '';
 
@@ -92,9 +93,18 @@ function App() {
   }, [handleRefresh]);
 
   const header = (
-    <header className="mb-6 sm:mb-7 pt-0 min-w-0">
-      <h1 className="app-title text-zinc-50 truncate">My Notepad</h1>
-      <p className="app-tagline">Tasks & notes in one place</p>
+    <header className="mb-6 sm:mb-7 pt-0 min-w-0 flex flex-col gap-0">
+      <div className="flex items-center gap-3 min-w-0">
+        <img
+          src={notedLogo}
+          alt=""
+          className="h-[1.5rem] w-[1.5rem] sm:h-[1.75rem] sm:w-[1.75rem] shrink-0 rounded-md object-contain"
+          width={28}
+          height={28}
+        />
+        <h1 className="app-title text-zinc-50 truncate">Noted</h1>
+      </div>
+      <p className="app-tagline">Never was so easy to do tasks</p>
     </header>
   );
 

@@ -11,7 +11,7 @@ const apiKey = (import.meta.env.VITE_BACKEND_API_KEY ?? '').toString().trim();
 
 if (baseUrl && !apiKey && import.meta.env.DEV) {
   console.warn(
-    '[My Notepad] VITE_BACKEND_URL is set but VITE_BACKEND_API_KEY is missing. Add VITE_BACKEND_API_KEY to .env (same value as backend BACKEND_API_KEY) and restart the dev server.'
+    '[Noted] VITE_BACKEND_URL is set but VITE_BACKEND_API_KEY is missing. Add VITE_BACKEND_API_KEY to .env (same value as backend BACKEND_API_KEY) and restart the dev server.'
   );
 }
 

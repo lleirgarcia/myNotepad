@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.mynotepad.app',
-  appName: 'My Notepad',
+  appName: 'Noted',
   webDir: 'dist',
   server: {
     // Allow live reload in dev when using cap run

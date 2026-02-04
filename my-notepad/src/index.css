@@ -44,7 +44,7 @@
   border-radius: 0.5rem;
   border: 1px solid theme(colors.zinc.700 / 0.6);
   background: theme(colors.zinc.800 / 0.5);
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 .task-card:hover {
   background: theme(colors.zinc.800 / 0.75);
@@ -54,16 +54,18 @@
   opacity: 0.6;
 }
 
-/* Quick-add bar (Todoist-style) */
+/* Quick-add bar: stronger hierarchy (Todoist-style) */
 .quick-add-bar {
   border-radius: 0.75rem;
-  border: 1px solid theme(colors.zinc.600 / 0.8);
-  background: theme(colors.zinc.900);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid theme(colors.zinc.600 / 0.9);
+  background: theme(colors.zinc.800 / 0.7);
+  box-shadow: 0 2px 8px theme(colors.black / 0.2), 0 0 0 1px theme(colors.zinc.700 / 0.5);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 .quick-add-bar:focus-within {
   border-color: theme(colors.amber.500 / 0.5);
-  box-shadow: 0 0 0 3px theme(colors.amber.500 / 0.1);
+  box-shadow: 0 2px 12px theme(colors.black / 0.25), 0 0 0 3px theme(colors.amber.500 / 0.15);
+  background: theme(colors.zinc.800 / 0.85);
 }
 
 /* Empty state */
@@ -265,4 +267,19 @@ body {
 .datepicker-dark .react-datepicker__year-select option {
   background: theme(colors.zinc.800);
   color: white;
+}
+
+/* Toast: brief enter animation */
+.toast-enter {
+  animation: toast-enter 0.2s ease-out forwards;
+}
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }

@@ -57,6 +57,8 @@ const TodoList = () => {
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [openPriorityTodoId, setOpenPriorityTodoId] = useState<string | null>(null);
   const priorityPopoverRef = useRef<HTMLDivElement>(null);
+  const [toast, setToast] = useState<{ message: string } | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Only notes that have at least one active (incomplete) task
   const notesWithActiveTasks = useMemo(() => {
@@ -71,8 +73,18 @@ const TodoList = () => {
     return () => {
       completedTimeoutsRef.current.forEach((t) => clearTimeout(t));
       completedTimeoutsRef.current.clear();
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     };
   }, []);
+
+  const showToast = (message: string) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ message });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimeoutRef.current = null;
+    }, 2000);
+  };
 
   // Clear selected note if it no longer has active tasks
   useEffect(() => {
@@ -238,6 +250,7 @@ const TodoList = () => {
     try {
       await backendApi.deleteNote(noteId);
       removeTodosByNoteId(noteId);
+      showToast('Note and tasks removed');
     } catch (err) {
       setSyncError(err instanceof Error ? err.message : 'Failed to delete note');
     } finally {
@@ -298,7 +311,8 @@ const TodoList = () => {
           </p>
         )}
         <div className="flex flex-col gap-3 w-full min-w-0 max-w-full">
-          <div className="quick-add-bar flex items-start min-h-[48px] min-w-0 w-full overflow-hidden">
+          <p className="section-label mb-0" id="add-task-priority-label">Priority</p>
+          <div className="quick-add-bar flex items-start min-h-[48px] min-w-0 w-full overflow-hidden" aria-labelledby="add-task-priority-label">
             <div className="shrink-0 flex items-stretch w-[calc(2.25rem*3)] md:w-[calc(2rem*3)] border-r border-zinc-700 self-stretch min-h-[48px]">
               {COLORS.map((color, i) => (
                 <button
@@ -337,15 +351,16 @@ const TodoList = () => {
               style={{ minHeight: 48 }}
             />
           </div>
-          <div className="flex flex-wrap gap-2 items-center min-w-0 w-full text-sm">
-            <div className="relative shrink-0 w-[5.5rem]" ref={calendarRef}>
+          <div className="flex flex-wrap gap-2 items-end min-w-0 w-full text-sm">
+            <div className="relative shrink-0 w-[5.5rem] flex flex-col gap-1" ref={calendarRef}>
+              <span className="section-label mb-0" id="add-task-date-label">Date</span>
               <button
                 type="button"
                 onClick={() => setCalendarOpen((o) => !o)}
                 aria-label={dueDate ? `Due: ${formatDueDate(dueDate)}. Click to change` : 'Add due date (optional)'}
                 title={dueDate ? formatDueDate(dueDate) : 'Pick a date (optional)'}
                 className={cn(
-                  'flex items-center justify-center min-h-[44px] h-11 md:h-9 w-full px-2 rounded-md border transition-colors',
+                  'flex items-center justify-center min-h-[44px] h-11 md:h-9 w-full px-2 rounded-md border transition-colors duration-200',
                   dueDate
                     ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
                     : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
@@ -378,35 +393,41 @@ const TodoList = () => {
                 </div>
               )}
             </div>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              aria-label="Category"
-              className="flex-1 min-w-0 min-h-[44px] h-11 md:h-9 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-sm"
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.label}</option>
-              ))}
-            </select>
-            {backendUrl && (
+            <div className="flex-1 min-w-0 flex flex-col gap-1">
+              <span className="section-label mb-0" id="add-task-category-label">Category</span>
               <select
-                value={selectedNoteId ?? ''}
-                onChange={(e) => setSelectedNoteId(e.target.value ? e.target.value : null)}
-                aria-label="Add to note"
-                title="Add this task to a note (only notes with active tasks)"
-                className="flex-1 min-w-0 min-h-[44px] h-11 md:h-9 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-sm"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                aria-labelledby="add-task-category-label"
+                className="w-full min-h-[44px] h-11 md:h-9 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-sm transition-colors duration-200 hover:border-zinc-600"
               >
-                <option value="">Other tasks</option>
-                {notesWithActiveTasks.map((note) => (
-                  <option key={note.id} value={note.id}>{note.title}</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.label}</option>
                 ))}
               </select>
+            </div>
+            {backendUrl && (
+              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <span className="section-label mb-0" id="add-task-note-label">Add to note</span>
+                <select
+                  value={selectedNoteId ?? ''}
+                  onChange={(e) => setSelectedNoteId(e.target.value ? e.target.value : null)}
+                  aria-labelledby="add-task-note-label"
+                  title="Add this task to a note (only notes with active tasks)"
+                  className="w-full min-h-[44px] h-11 md:h-9 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-sm transition-colors duration-200 hover:border-zinc-600"
+                >
+                  <option value="">Other tasks</option>
+                  {notesWithActiveTasks.map((note) => (
+                    <option key={note.id} value={note.id}>{note.title}</option>
+                  ))}
+                </select>
+              </div>
             )}
             <button
               type="submit"
               disabled={addLoading}
               aria-label="Add task"
-              className="shrink-0 min-h-[44px] h-11 md:h-9 px-4 py-2 bg-amber-500 text-zinc-950 rounded-md hover:bg-amber-600 transition-colors font-medium flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="shrink-0 min-h-[44px] h-11 md:h-9 px-4 py-2 bg-amber-500 text-zinc-950 rounded-md hover:bg-amber-600 active:scale-[0.98] transition-all duration-200 font-medium flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
               {addLoading ? 'Adding…' : 'Add'}
@@ -426,7 +447,7 @@ const TodoList = () => {
           aria-pressed={filterCategory === null}
           aria-label="Show all active tasks"
           className={cn(
-            'min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-colors',
+            'min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-colors duration-200',
             filterCategory === null
               ? 'bg-zinc-600 text-zinc-100'
               : 'bg-zinc-800/80 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
@@ -444,7 +465,7 @@ const TodoList = () => {
               aria-pressed={filterCategory === cat.id}
               aria-label={`Filter by ${cat.label}${count > 0 ? `, ${count} active` : ''}`}
               className={cn(
-                'min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-colors flex items-center gap-1.5',
+                'min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-colors duration-200 flex items-center gap-1.5',
                 filterCategory === cat.id
                   ? 'bg-zinc-600 text-zinc-100'
                   : 'bg-zinc-800/80 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
@@ -461,7 +482,7 @@ const TodoList = () => {
           aria-pressed={filterCategory === FILTER_DONE_ID}
           aria-label="Show completed tasks"
           className={cn(
-            'min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-colors flex items-center gap-1.5',
+            'min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-colors duration-200 flex items-center gap-1.5',
             filterCategory === FILTER_DONE_ID
               ? 'bg-zinc-600 text-zinc-100'
               : 'bg-zinc-800/80 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
@@ -486,7 +507,7 @@ const TodoList = () => {
             }}
             aria-label={groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? 'Expand all notes' : 'Collapse all notes'}
             title={groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? 'Expand all notes' : 'Collapse all notes'}
-            className="min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-zinc-800/80 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300 transition-colors flex items-center gap-1.5"
+            className="min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-zinc-800/80 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300 transition-colors duration-200 flex items-center gap-1.5"
           >
             {groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? (
               <ChevronDown className="w-3 h-3" aria-hidden />
@@ -655,6 +676,7 @@ const TodoList = () => {
                               if (!backendUrl) {
                                 updateTodo({ ...todo, completed: nextCompleted });
                                 if (nextCompleted) {
+                                  showToast('Task completed');
                                   setJustCompletedIds((prev) => new Set(prev).add(id));
                                   const t = setTimeout(() => {
                                     setJustCompletedIds((prev) => {
@@ -672,6 +694,7 @@ const TodoList = () => {
                                 const updated = await backendApi.updateTodo(id, { completed: nextCompleted });
                                 updateTodo(updated);
                                 if (nextCompleted) {
+                                  showToast('Task completed');
                                   setJustCompletedIds((prev) => new Set(prev).add(id));
                                   const t = setTimeout(() => {
                                     setJustCompletedIds((prev) => {
@@ -720,11 +743,13 @@ const TodoList = () => {
                             onClick={async () => {
                               if (!backendUrl) {
                                 removeTodo(todo.id);
+                                showToast('Task removed');
                                 return;
                               }
                               try {
                                 await backendApi.deleteTodo(todo.id);
                                 removeTodo(todo.id);
+                                showToast('Task removed');
                               } catch {
                                 setSyncError('Failed to delete');
                               }
@@ -751,6 +776,17 @@ const TodoList = () => {
           <span>{activeTodos} active</span>
           <span>{todos.filter((t) => t.completed).length} done</span>
           <span>{todos.length} total</span>
+        </div>
+      )}
+
+      {/* Toast feedback */}
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="toast-enter fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg bg-zinc-800 border border-zinc-600 text-zinc-100 text-sm font-medium shadow-lg"
+        >
+          {toast.message}
         </div>
       )}
     </div>
