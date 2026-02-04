@@ -1,24 +1,26 @@
 # Design System
 
-## Modern Dark Minimalist Theme
+## Style Prototype: Todoist/Things-Inspired (Current)
 
-This app has been redesigned with a professional, minimalist dark theme optimized for both desktop and mobile browsers.
+The app uses a **warmer dark theme** inspired by popular todo apps (Todoist, Things 3). See **docs/TODO-APPS-DESIGN-REVIEW.md** for the design review and rationale.
 
 ### Component Library
 - **Lucide React**: Modern icon library with consistent design
 - **Tailwind CSS**: Utility-first CSS framework
-- **Custom Design Tokens**: HSL-based color system for flexibility
+- **Neutrals**: Zinc palette (warmer than slate)
+- **Primary accent**: Amber (Todoist-style warmth)
 
-### Color Palette
+### Color Palette (Prototype)
 
 ```css
-Background: #0c0a09 (Dark gray-black)
-Foreground: #fafaf9 (Off-white)
-Primary: #3b82f6 (Blue)
-Secondary: #1e293b (Dark slate)
-Border: #334155 (Slate)
-Muted: #64748b (Gray)
-Destructive: #7f1d1d (Dark red)
+Background: zinc-950 (Warm dark)
+Foreground: zinc-50 (Off-white)
+Primary: amber-500 (Warm accent for actions, active states)
+Secondary: zinc-900 / zinc-800 (Surfaces, cards)
+Border: zinc-700 / zinc-600
+Muted: zinc-500 / zinc-400
+Destructive: red-500 (Delete, errors)
+Priority dots: red / yellow / cyan (unchanged)
 ```
 
 ### Key Features
@@ -52,8 +54,8 @@ Destructive: #7f1d1d (Dark red)
 
 ### Spacing & Layout
 - 8px grid system
-- Generous padding for touch targets
-- Consistent border radius (0.75rem)
+- Generous padding for touch targets (44px min touch targets on mobile)
+- Rounded corners: `rounded-lg` (buttons, inputs), `rounded-xl` (cards, panels)
 
 ### Icons
 Using Lucide React icons:

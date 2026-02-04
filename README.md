@@ -69,6 +69,7 @@ See [1-objectives.md](./1-objectives.md) for the full story and motivation.
 | `backend/` | Node.js backend: OpenAI + Supabase. [backend/README.md](./backend/README.md) |
 | `docs/HOW-TO-USE.md` | **User guide:** how to run and use the app |
 | `docs/ONBOARDING.md` | **Onboarding:** first-time steps for general users |
+| `docs/BUGS.md` | **Known bugs:** tracked issues and fixes |
 | `1-objectives.md` | Why this app exists and what it’s for |
 | `PROJECT_SUMMARY.md` | Feature and stack overview |
 
