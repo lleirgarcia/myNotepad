@@ -1,6 +1,6 @@
 # TODO Apps Design Review — Popular Apps & UX Patterns
 
-A short review of leading todo/task apps and how their design can inspire **My Notepad** frontend/UX.
+A short review of leading todo/task apps and how their design can inspire **Noted** frontend/UX.
 
 ---
 

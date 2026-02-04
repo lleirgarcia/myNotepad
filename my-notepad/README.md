@@ -1,4 +1,4 @@
-# 📝 My Notepad - TODO & Notes App
+# 📝 Noted — TODO & Notes App
 
 A beautiful, simple, and powerful note-taking and TODO management app designed to keep your mind clean and organized.
 

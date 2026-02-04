@@ -1,4 +1,4 @@
-# Onboarding — My Notepad
+# Onboarding — Noted
 
 Quick steps to get a **general user** from zero to using the app.
 
@@ -20,7 +20,7 @@ Choose how you use it:
 | **You run it on your computer** | See [HOW-TO-USE.md — Running the app](./HOW-TO-USE.md#1-running-the-app). In short: `cd my-notepad`, `npm install`, `npm run dev`, then open **http://localhost:5173**. |
 | **On your phone (Android/iOS)** | Install the app from the store or open the link your team shared. If you built it yourself, see [HOW-TO-USE.md — Android and iOS](./HOW-TO-USE.md#8-running-on-android-and-ios). |
 
-You should see **My Notepad** with two tabs: **Todos** and **Notes**.
+You should see **Noted** with two tabs: **Todos** and **Notes**.
 
 ---
 

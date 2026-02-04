@@ -1,6 +1,6 @@
-# How to Use My Notepad
+# How to Use Noted
 
-This guide explains how to run, configure, and use the **My Notepad** app: TODOs, notes (whiteboard), AI insights, voice input, and optional backend/Supabase.
+This guide explains how to run, configure, and use the **Noted** app: TODOs, notes (whiteboard), AI insights, voice input, and optional backend/Supabase.
 
 ---
 

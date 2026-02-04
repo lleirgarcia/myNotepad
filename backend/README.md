@@ -1,4 +1,4 @@
-# My Notepad — Backend
+# Noted — Backend
 
 Node.js backend that connects to the **OpenAI API** and exposes HTTP endpoints for chat and completions.
 
@@ -25,6 +25,19 @@ npm run dev
 # Production
 npm run build && npm start
 ```
+
+## Tests
+
+Unit tests use [Vitest](https://vitest.dev/) and [Supertest](https://github.com/ladjs/supertest). Supabase and OpenAI are mocked so tests run without real APIs.
+
+```bash
+cd backend
+npm run test          # run once
+npm run test:watch    # watch mode
+npm run test:coverage # coverage report
+```
+
+Tests run automatically before each commit (via [Husky](https://typicode.github.io/husky/) in the repo root). To skip: `git commit --no-verify`.
 
 Server runs at `http://localhost:3000` by default. Set `PORT` in `.env` to change.
 
@@ -82,9 +95,11 @@ Response: `{ "summary": "...", "tags": ["tag1", ...], "actionItems": ["item1", .
 
 ## Structure
 
-- `src/config.ts` — Loads `OPENAI_API_KEY` and `PORT` from env.
-- `src/services/openai.service.ts` — OpenAI client wrapper (`chat`, `complete`, `healthCheck`).
-- `src/routes/openai.routes.ts` — Express routes for the API.
-- `src/index.ts` — Express app and server.
+- `src/config.ts` — Loads env (OpenAI, Supabase, `BACKEND_API_KEY`, `DEFAULT_USER_ID`).
+- `src/app.ts` — Express app (used by `index.ts` and tests).
+- `src/index.ts` — Starts the server.
+- `src/services/openai.service.ts` — OpenAI client wrapper (`chat`, `complete`, `processNote`, `healthCheck`).
+- `src/routes/*.routes.ts` — Notes, todos, openai, whiteboard.
+- `src/**/*.test.ts` — Unit tests (Vitest + Supertest).
 
 API key is never logged or exposed in responses.
