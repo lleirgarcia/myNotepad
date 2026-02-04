@@ -31,13 +31,21 @@ export type NoteInsight = {
 
 const NOTES_SYSTEM_PROMPT = `You are a notepad assistant. The user will send you a note (free-form text).
 Respond with a single JSON object only, no other text, with exactly these keys:
-- "title": string — a short title for the note, 3 to 4 words maximum (e.g. "YouTube course ideas").
+- "title": string — a short title to identify the note: exactly 3 or 4 words (e.g. "YouTube course ideas", "Transcription app plan"). Base it on the whole note and its main topic. This title will be shown in the app to identify the note.
 - "summary": string — one or two short sentences summarizing the note.
-- "tags": string[] — 0 to 5 short labels (e.g. work, idea, reminder). Lowercase, no spaces in a tag.
-- "actionItems": string[] — 0 to 5 concrete next steps or to-dos extracted from the note. Each item one short sentence.
+- "tags": string[] — short labels (e.g. work, idea, reminder). Lowercase, no spaces in a tag. Use as many as needed; no fixed limit.
+- "actionItems": string[] — concrete next steps or to-dos extracted from the note. Include every actionable item so the full note is covered; do not limit to a small number. A long note can have many items; a short note few. Each item one short sentence.
 
 If the note is empty or meaningless, return: {"title":"","summary":"","tags":[],"actionItems":[]}.
-Keep everything concise.`;
+Be thorough: convert the whole note into action items so nothing important is missed.`;
+
+/** Enforce title to be at most 4 words (and 50 chars) so notes are identifiable. */
+function shortTitle(s: string): string {
+  const trimmed = s.trim();
+  if (!trimmed) return '';
+  const words = trimmed.split(/\s+/).filter(Boolean).slice(0, 4);
+  return words.join(' ').slice(0, 50);
+}
 
 /**
  * Service that wraps the OpenAI API. All methods use the API key from config.
@@ -112,7 +120,7 @@ export class OpenAIService {
         { role: 'system', content: NOTES_SYSTEM_PROMPT },
         { role: 'user', content: noteContent.trim() || '(empty note)' },
       ],
-      max_tokens: 512,
+      max_tokens: 2048,
       temperature: 0.3,
       response_format: { type: 'json_object' },
     });
@@ -126,14 +134,15 @@ export class OpenAIService {
     }
 
     const obj = parsed as Record<string, unknown>;
+    const rawTitle = typeof obj.title === 'string' ? obj.title : '';
     return {
-      title: typeof obj.title === 'string' ? obj.title.trim().slice(0, 80) : '',
+      title: shortTitle(rawTitle),
       summary: typeof obj.summary === 'string' ? obj.summary : '',
       tags: Array.isArray(obj.tags)
-        ? obj.tags.filter((t): t is string => typeof t === 'string').slice(0, 5)
+        ? obj.tags.filter((t): t is string => typeof t === 'string')
         : [],
       actionItems: Array.isArray(obj.actionItems)
-        ? obj.actionItems.filter((t): t is string => typeof t === 'string').slice(0, 5)
+        ? obj.actionItems.filter((t): t is string => typeof t === 'string')
         : [],
     };
   }

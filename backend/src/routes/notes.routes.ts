@@ -166,6 +166,16 @@ notesRouter.delete('/:id', async (req: Request, res: Response): Promise<void> =>
     const userId = getUserId(req);
     const id = req.params.id;
     const supabase = getSupabaseAdmin();
+    // Delete all todos linked to this note, then delete the note
+    const { error: todosError } = await supabase
+      .from('todos')
+      .delete()
+      .eq('note_id', id)
+      .eq('user_id', userId);
+    if (todosError) {
+      handleSupabaseError(res, todosError);
+      return;
+    }
     const { error } = await supabase.from('notes').delete().eq('id', id).eq('user_id', userId);
     if (error) {
       handleSupabaseError(res, error);

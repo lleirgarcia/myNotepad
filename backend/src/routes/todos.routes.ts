@@ -27,7 +27,7 @@ function mapRowToTodo(row: {
   color: string;
   category: string;
   due_date: string | null;
-  note_id: string | null;
+  note_id?: string | null;
   created_at: string;
   notes?: { title: string } | null;
 }) {
@@ -112,14 +112,19 @@ todosRouter.post('/', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+const PRIORITY_COLORS = ['red', 'yellow', 'cyan'] as const;
+
 todosRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = getUserId(req);
     const id = req.params.id;
-    const body = req.body as { completed?: boolean; text?: string };
+    const body = req.body as { completed?: boolean; text?: string; color?: string };
     const update: Record<string, unknown> = {};
     if (typeof body.completed === 'boolean') update.completed = body.completed;
     if (typeof body.text === 'string') update.text = body.text;
+    if (typeof body.color === 'string' && PRIORITY_COLORS.includes(body.color as 'red' | 'yellow' | 'cyan')) {
+      update.color = body.color;
+    }
     if (Object.keys(update).length === 0) {
       res.status(400).json({ error: 'No updates provided' });
       return;
@@ -130,7 +135,7 @@ todosRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => 
       .update(update)
       .eq('id', id)
       .eq('user_id', userId)
-      .select()
+      .select('*, notes(title)')
       .single();
     if (error) {
       handleSupabaseError(res, error);
