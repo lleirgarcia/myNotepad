@@ -1,4 +1,4 @@
-# My Notepad — Notes & TODO
+# Noted — Notes & TODO
 
 A personal **TODO and notekeeper** app for 2026. One place to capture what matters: work, code, ideas, and life—without the noise.
 
@@ -54,6 +54,8 @@ cd my-notepad && npm install && npm run dev   # → http://localhost:5173
 # Backend (optional: OpenAI + Supabase)
 cd backend && cp .env.example .env && npm install && npm run dev   # → http://localhost:3000
 ```
+
+**Tests:** Backend unit tests run on `npm run test` in `backend/` and automatically before each commit (pre-commit hook). From repo root: `npm run test` runs backend tests.
 
 See [1-objectives.md](./1-objectives.md) for the full story and motivation.
 
