@@ -384,14 +384,14 @@ const NotesList = () => {
 
   return (
     <div className="h-full flex flex-col min-w-0 max-w-full overflow-hidden">
-      {/* Textarea first, full width */}
+      <p className="section-label mb-3">Notes</p>
       <textarea
         ref={textareaRef}
         value={whiteboard}
         onChange={handleChange}
-        placeholder="Start writing your notes here… They are saved automatically. Click «Process with AI» below to get insights."
+        placeholder="Start writing… Your notes are saved automatically. Use «Process with AI» below for a summary and action items."
         aria-label="Notes - auto-saved"
-        className="w-full max-w-full min-w-0 min-h-[35vh] px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder:text-slate-600 resize-none leading-relaxed box-border text-sm"
+        className="quick-add-bar w-full max-w-full min-w-0 min-h-[35vh] px-4 py-3.5 bg-zinc-950/80 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 resize-none leading-relaxed box-border text-[15px] rounded-xl"
         style={{
           minHeight: '35vh',
           maxHeight: 'none',
@@ -405,15 +405,15 @@ const NotesList = () => {
           <div className="flex items-center gap-2 flex-wrap">
             {Capacitor.isNativePlatform() && (
               <>
-                <span className="text-xs text-slate-500 mr-0.5">Language:</span>
-                <div className="flex rounded-md overflow-hidden border border-slate-700 bg-slate-800">
+                <span className="text-xs text-zinc-500 mr-0.5">Language:</span>
+                <div className="flex rounded-md overflow-hidden border border-zinc-700 bg-zinc-800">
                   <button
                     type="button"
                     onClick={() => setVoiceLanguage('es-ES')}
                     aria-label="Use Spanish for voice"
                     className={cn(
                       'px-2 py-1.5 text-xs font-medium transition-colors',
-                      voiceLanguage === 'es-ES' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                      voiceLanguage === 'es-ES' ? 'bg-amber-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
                     )}
                   >
                     ES
@@ -423,8 +423,8 @@ const NotesList = () => {
                     onClick={() => setVoiceLanguage('en-US')}
                     aria-label="Use English for voice"
                     className={cn(
-                      'px-2 py-1.5 text-xs font-medium transition-colors border-l border-slate-700',
-                      voiceLanguage === 'en-US' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                      'px-2 py-1.5 text-xs font-medium transition-colors border-l border-zinc-700',
+                      voiceLanguage === 'en-US' ? 'bg-amber-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
                     )}
                   >
                     EN
@@ -440,7 +440,7 @@ const NotesList = () => {
                 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
                 isRecording
                   ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                  : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 border border-zinc-700'
               )}
               aria-label={isRecording ? 'Stop recording' : 'Record voice and transcribe to text'}
               title={isRecording ? 'Click to stop and add transcript to note' : 'Record your voice; it will be transcribed to text'}
@@ -456,33 +456,33 @@ const NotesList = () => {
           </div>
         )}
 
-        {/* Stats Bar + Process button */}
-      <div className="mt-3 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-1.5 text-xs text-slate-500">
-        <span className="flex items-center gap-1 text-slate-400" aria-live="polite">
-          <span className="w-1 h-1 rounded-full bg-emerald-500" aria-hidden />
+        {/* Stats + Process (2025-style bar) */}
+      <div className="mt-4 pt-4 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] uppercase tracking-wider text-zinc-500">
+        <span className="flex items-center gap-1.5 text-zinc-400" aria-live="polite">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden />
           Auto-saved
         </span>
-        <span>{lineCount} {lineCount === 1 ? 'line' : 'lines'}</span>
-        <span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
-        <span>{charCount} {charCount === 1 ? 'char' : 'chars'}</span>
+        <span>{lineCount} lines</span>
+        <span>{wordCount} words</span>
+        <span>{charCount} chars</span>
         <button
           type="button"
           onClick={handleProcessFullText}
           disabled={!whiteboard.trim() || insightLoading}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-xs"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-zinc-700/80 text-zinc-200 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-[11px] uppercase tracking-wider"
           aria-label="Process full text and get AI insights"
         >
-          <Sparkles className="w-3 h-3" aria-hidden />
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" aria-hidden />
           {insightLoading ? 'Processing…' : 'Process with AI'}
         </button>
       </div>
 
-        {/* AI insights (summary, tags, action items) */}
-      <div className="mt-3 border border-slate-800 rounded-lg bg-slate-900/80 overflow-hidden">
+        {/* AI insights – card style */}
+      <div className="mt-4 rounded-xl border border-zinc-700/60 bg-zinc-800/40 overflow-hidden">
         <button
           type="button"
           onClick={() => setInsightOpen((o) => !o)}
-          className="w-full px-3 py-2 flex items-center justify-between gap-2 text-left text-slate-300 hover:bg-slate-800/50 transition-colors text-sm"
+          className="w-full px-4 py-3 flex items-center justify-between gap-2 text-left text-zinc-200 hover:bg-zinc-800/60 transition-colors text-sm font-medium"
           aria-expanded={insightOpen}
         >
           <span className="flex items-center gap-1.5 font-medium">
@@ -492,29 +492,29 @@ const NotesList = () => {
           {insightOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </button>
         {insightOpen && (
-          <div className="px-3 pb-3 pt-0 text-xs text-slate-400">
-            {insightLoading && <p className="text-slate-500">Analyzing note…</p>}
+          <div className="px-3 pb-3 pt-0 text-xs text-zinc-400">
+            {insightLoading && <p className="text-zinc-500">Analyzing note…</p>}
             {insightError && <p className="text-red-400">{insightError}</p>}
             {!insightLoading && !insightError && !hasInsight && whiteboard.trim().length > 0 && (
-              <p className="text-slate-500">Click &quot;Process with AI&quot; below to get a summary, tags, and action items.</p>
+              <p className="text-zinc-500">Click &quot;Process with AI&quot; below to get a summary, tags, and action items.</p>
             )}
             {!insightLoading && !insightError && !hasInsight && whiteboard.trim().length === 0 && (
-              <p className="text-slate-500">Write a note in the box above, then click &quot;Process with AI&quot; to get insights.</p>
+              <p className="text-zinc-500">Write a note in the box above, then click &quot;Process with AI&quot; to get insights.</p>
             )}
             {!insightLoading && !insightError && hasInsight && insight && (
               <div className="space-y-3">
                 {insight.summary && (
                   <div>
-                    <span className="text-slate-500 font-medium">Summary</span>
-                    <p className="mt-0.5 text-slate-300">{insight.summary}</p>
+                    <span className="text-zinc-500 font-medium">Summary</span>
+                    <p className="mt-0.5 text-zinc-300">{insight.summary}</p>
                   </div>
                 )}
                 {insight.tags.length > 0 && (
                   <div>
-                    <span className="text-slate-500 font-medium">Tags</span>
+                    <span className="text-zinc-500 font-medium">Tags</span>
                     <p className="mt-0.5 flex flex-wrap gap-1.5">
                       {insight.tags.map((t) => (
-                        <span key={t} className="px-2 py-0.5 rounded bg-slate-700 text-slate-300 text-xs">
+                        <span key={t} className="px-2 py-0.5 rounded bg-zinc-700 text-zinc-300 text-xs">
                           {t}
                         </span>
                       ))}
@@ -523,14 +523,14 @@ const NotesList = () => {
                 )}
                 {insight.actionItems.length > 0 && (
                   <div>
-                    <span className="text-slate-500 font-medium">Action items</span>
+                    <span className="text-zinc-500 font-medium">Action items</span>
                     {creatingTodos && (
                       <p className="mt-0.5 text-amber-400 text-xs">Adding as todos…</p>
                     )}
                     {!creatingTodos && todosCreated > 0 && (
                       <p className="mt-0.5 text-emerald-400 text-xs">{todosCreated} added to Todos</p>
                     )}
-                    <ul className="mt-0.5 list-disc list-inside space-y-0.5 text-slate-300">
+                    <ul className="mt-0.5 list-disc list-inside space-y-0.5 text-zinc-300">
                       {insight.actionItems.map((a, i) => (
                         <li key={i}>{a}</li>
                       ))}

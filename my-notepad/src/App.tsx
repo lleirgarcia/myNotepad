@@ -92,17 +92,18 @@ function App() {
   }, [handleRefresh]);
 
   const header = (
-    <header className="mb-4 sm:mb-5 pt-0 min-w-0 flex items-start justify-between gap-2">
-      <div className="min-w-0">
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-50 mb-0.5 tracking-tight truncate">
-          My Notepad
-        </h1>
-      </div>
+    <header className="mb-6 sm:mb-7 pt-0 min-w-0">
+      <h1 className="app-title text-zinc-50 truncate">My Notepad</h1>
+      <p className="app-tagline">Tasks & notes in one place</p>
     </header>
   );
 
   const tabs = (
-    <div className="flex gap-1 mb-3 sm:mb-4 bg-slate-900 rounded-md p-1 border border-slate-800 min-w-0" role="tablist" aria-label="Main sections">
+    <div
+      className="flex gap-0.5 sm:gap-1 mb-5 sm:mb-6 p-1 rounded-2xl bg-zinc-900/90 border border-zinc-700/60 min-w-0 w-full max-w-sm"
+      role="tablist"
+      aria-label="Main sections"
+    >
       <button
         role="tab"
         aria-selected={activeTab === 'todos'}
@@ -110,14 +111,14 @@ function App() {
         id="todos-tab"
         onClick={() => setActiveTab('todos')}
         className={cn(
-          'flex-1 min-w-0 min-h-[44px] py-2.5 px-2.5 sm:py-2 sm:px-3 rounded font-medium transition-all flex items-center justify-center gap-1.5 text-sm',
+          'flex-1 min-w-0 min-h-[44px] py-2.5 px-3 rounded-xl font-medium text-sm transition-all duration-150 flex items-center justify-center gap-2',
           activeTab === 'todos'
-            ? 'bg-blue-600 text-white shadow-sm'
-            : 'text-slate-400 hover:text-slate-200'
+            ? 'bg-zinc-800 text-zinc-50 shadow-sm border border-zinc-600/80'
+            : 'text-zinc-500 hover:text-zinc-300'
         )}
       >
-        <CheckSquare className="w-3.5 h-3.5 shrink-0" aria-hidden />
-        <span className="truncate">Todos</span>
+        <CheckSquare className="w-4 h-4 shrink-0" aria-hidden />
+        <span className="truncate">Tasks</span>
       </button>
       <button
         role="tab"
@@ -126,13 +127,13 @@ function App() {
         id="notes-tab"
         onClick={() => setActiveTab('notes')}
         className={cn(
-          'flex-1 min-w-0 min-h-[44px] py-2.5 px-2.5 sm:py-2 sm:px-3 rounded font-medium transition-all flex items-center justify-center gap-1.5 text-sm',
+          'flex-1 min-w-0 min-h-[44px] py-2.5 px-3 rounded-xl font-medium text-sm transition-all duration-150 flex items-center justify-center gap-2',
           activeTab === 'notes'
-            ? 'bg-blue-600 text-white shadow-sm'
-            : 'text-slate-400 hover:text-slate-200'
+            ? 'bg-zinc-800 text-zinc-50 shadow-sm border border-zinc-600/80'
+            : 'text-zinc-500 hover:text-zinc-300'
         )}
       >
-        <BookOpen className="w-3.5 h-3.5 shrink-0" aria-hidden />
+        <BookOpen className="w-4 h-4 shrink-0" aria-hidden />
         <span className="truncate">Notes</span>
       </button>
     </div>
@@ -143,54 +144,56 @@ function App() {
       id={activeTab === 'todos' ? 'todos-panel' : 'notes-panel'}
       role="tabpanel"
       aria-labelledby={activeTab === 'todos' ? 'todos-tab' : 'notes-tab'}
-      className="bg-slate-900 rounded-lg border border-slate-800 p-3 sm:p-4 shadow-sm transition-opacity duration-150 min-w-0 overflow-x-hidden max-w-full"
+      className="rounded-2xl bg-zinc-900/40 border border-zinc-800/80 p-4 sm:p-5 min-w-0 overflow-x-hidden max-w-full transition-opacity duration-150"
     >
       {activeTab === 'todos' ? <TodoList /> : <NotesList />}
     </div>
   );
 
   const footer = (
-    <footer className="mt-8 pt-6 border-t border-slate-800 text-center">
-      <p className="text-slate-500 text-xs flex flex-wrap items-center justify-center gap-1">
-        <span>2026.</span>
+    <footer className="mt-10 pt-6 border-t border-zinc-800/80 text-center">
+      <p className="text-zinc-500 text-xs flex flex-wrap items-center justify-center gap-1.5">
+        <span>2026</span>
         <a
           href="https://lleir.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-slate-400 hover:text-slate-300 underline underline-offset-2"
+          className="text-zinc-400 hover:text-zinc-300 underline underline-offset-2"
         >
           Lleïr
         </a>
-        <span>made it with</span>
-        <Heart className="w-3.5 h-3.5 text-red-500/80 fill-red-500/80 inline-block" aria-hidden />
+        <span>·</span>
+        <span className="inline-flex items-center gap-0.5">
+          made with <Heart className="w-3.5 h-3.5 text-amber-500/80 fill-amber-500/80" aria-hidden />
+        </span>
       </p>
     </footer>
   );
 
   return (
-    <div className="h-dvh min-h-screen bg-slate-950 app-safe-area w-full max-w-full flex flex-col overflow-hidden">
+    <div className="h-dvh min-h-screen bg-zinc-950 app-safe-area w-full max-w-full flex flex-col overflow-hidden">
       <div
         ref={scrollRef}
         className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <div
-          className="flex items-center justify-center bg-slate-900/80 text-slate-400 text-xs transition-[height] duration-150 ease-out"
+          className="flex items-center justify-center bg-zinc-900/80 text-zinc-400 text-xs transition-[height] duration-150 ease-out"
           style={{ height: isRefreshing ? PULL_THRESHOLD : Math.max(0, pullDistance) }}
           aria-hidden={pullDistance === 0 && !isRefreshing}
         >
           {isRefreshing ? (
-            <Loader2 className="w-5 h-5 animate-spin text-slate-400" aria-hidden />
+            <Loader2 className="w-5 h-5 animate-spin text-zinc-400" aria-hidden />
           ) : pullDistance >= PULL_THRESHOLD ? (
             <span>Release to refresh</span>
           ) : pullDistance > 0 ? (
             <span>Pull to refresh</span>
           ) : null}
         </div>
-        <div className="mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-5 max-w-[50.4rem] w-full min-w-0">
+        <div className="mx-auto px-4 sm:px-6 md:px-8 py-5 sm:py-6 max-w-[42rem] w-full min-w-0">
           {header}
           {backendUrl && dataLoading ? (
-            <div className="py-12 text-center text-slate-400">Loading your data…</div>
+            <div className="py-12 text-center text-zinc-400">Loading your data…</div>
           ) : (
             <>
               {tabs}

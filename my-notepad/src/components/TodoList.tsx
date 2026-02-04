@@ -52,7 +52,7 @@ const TodoList = () => {
   const [collapsedNoteIds, setCollapsedNoteIds] = useState<Set<string>>(new Set());
   const completedTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const calendarRef = useRef<HTMLDivElement>(null);
-  const todoInputRef = useRef<HTMLInputElement>(null);
+  const todoInputRef = useRef<HTMLTextAreaElement>(null);
   const { todos, addTodo, updateTodo, removeTodo, removeTodosByNoteId } = useStore();
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [openPriorityTodoId, setOpenPriorityTodoId] = useState<string | null>(null);
@@ -80,6 +80,14 @@ const TodoList = () => {
       setSelectedNoteId(null);
     }
   }, [selectedNoteId, notesWithActiveTasks]);
+
+  // Grow todo input height as user types
+  useEffect(() => {
+    const el = todoInputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(el.scrollHeight, 48)}px`;
+  }, [newTodo]);
 
   const handleTodoInputFocus = () => {
     console.log('[Keyboard Debug] Todo input focused');
@@ -185,7 +193,6 @@ const TodoList = () => {
       if (!map.has(key)) map.set(key, { title, todos: [] });
       map.get(key)!.todos.push(todo);
     }
-    // Sort todos within each group by priority: red → yellow → cyan, then by createdAt
     for (const group of map.values()) {
       group.todos.sort((a, b) => {
         const pa = COLOR_PRIORITY_ORDER[a.color];
@@ -194,7 +201,6 @@ const TodoList = () => {
         return b.createdAt - a.createdAt;
       });
     }
-    // Sort note groups: notes with more high-priority (red) todos first, then yellow, then cyan
     const entries = Array.from(map.entries());
     const priorityCounts = (key: string) => {
       const todos = map.get(key)!.todos;
@@ -225,6 +231,20 @@ const TodoList = () => {
     });
   };
 
+  const handleDeleteNoteSection = async (noteId: string) => {
+    if (!backendUrl || deletingNoteId) return;
+    setSyncError(null);
+    setDeletingNoteId(noteId);
+    try {
+      await backendApi.deleteNote(noteId);
+      removeTodosByNoteId(noteId);
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : 'Failed to delete note');
+    } finally {
+      setDeletingNoteId(null);
+    }
+  };
+
   const handlePriorityChange = async (todo: Todo, newColor: 'red' | 'yellow' | 'cyan') => {
     if (todo.color === newColor) {
       setOpenPriorityTodoId(null);
@@ -244,20 +264,6 @@ const TodoList = () => {
     }
   };
 
-  const handleDeleteNoteSection = async (noteId: string) => {
-    if (!backendUrl || deletingNoteId) return;
-    setSyncError(null);
-    setDeletingNoteId(noteId);
-    try {
-      await backendApi.deleteNote(noteId);
-      removeTodosByNoteId(noteId);
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Failed to delete note');
-    } finally {
-      setDeletingNoteId(null);
-    }
-  };
-
   const colorConfig = {
     red: 'bg-red-500',
     yellow: 'bg-yellow-500',
@@ -266,9 +272,16 @@ const TodoList = () => {
 
   const activeTodos = todos.filter(t => !t.completed).length;
 
+  const sectionTitle =
+    filterCategory === FILTER_DONE_ID
+      ? 'Completed'
+      : filterCategory
+        ? CATEGORIES.find((c) => c.id === filterCategory)?.label ?? 'Tasks'
+        : 'Tasks';
+
   return (
     <div className="min-w-0 max-w-full overflow-hidden">
-      {/* Add Todo Form: input first full width, then calendar / category / priority / Add */}
+      {/* Quick-add bar (Todoist-style) */}
       <form
         onSubmit={handleSubmit}
         onKeyDown={(e) => {
@@ -277,17 +290,16 @@ const TodoList = () => {
             handleSubmit(e);
           }
         }}
-        className="mb-4 min-w-0 max-w-full"
+        className="mb-5 min-w-0 max-w-full"
       >
         {syncError && (
-          <p className="mb-2 text-sm text-red-400" role="alert">
+          <p className="mb-3 text-sm text-red-400" role="alert">
             {syncError}
           </p>
         )}
-        {/* Input with priority colors inside; then calendar, category, note, Add */}
-        <div className="flex flex-col gap-2 w-full min-w-0 max-w-full">
-          <div className="flex items-stretch min-h-[44px] min-w-0 w-full bg-slate-950 border border-slate-700 rounded-md overflow-hidden">
-            <div className="shrink-0 flex items-stretch w-[calc(2.25rem*3)] md:w-[calc(2rem*3)] border-r border-slate-700">
+        <div className="flex flex-col gap-3 w-full min-w-0 max-w-full">
+          <div className="quick-add-bar flex items-start min-h-[48px] min-w-0 w-full overflow-hidden">
+            <div className="shrink-0 flex items-stretch w-[calc(2.25rem*3)] md:w-[calc(2rem*3)] border-r border-zinc-700 self-stretch min-h-[48px]">
               {COLORS.map((color, i) => (
                 <button
                   key={color.id}
@@ -300,45 +312,51 @@ const TodoList = () => {
                     color.color,
                     color.hover,
                     selectedColor === color.id && 'ring-2 ring-inset ring-white/50',
-                    i > 0 && 'border-l border-slate-600'
+                    i > 0 && 'border-l border-zinc-600'
                   )}
                 />
               ))}
             </div>
-            <input
+            <textarea
               ref={todoInputRef}
-              type="text"
               value={newTodo}
               onChange={(e) => setNewTodo(e.target.value)}
               onFocus={handleTodoInputFocus}
-              placeholder="What needs to be done?"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (newTodo.trim()) handleSubmit(e as unknown as React.FormEvent);
+                }
+              }}
+              placeholder="Add a task…"
               autoComplete="off"
-              autoCapitalize="sentences"
-              inputMode="text"
+              rows={1}
               enterKeyHint="done"
-              className="flex-1 min-w-0 px-3 py-3 bg-transparent border-0 text-slate-100 placeholder:text-slate-500 text-[16px] md:text-sm focus:outline-none focus:ring-0"
+              className="flex-1 min-w-0 px-4 py-3 bg-transparent border-0 text-zinc-100 placeholder:text-zinc-500 text-[16px] md:text-[15px] focus:outline-none focus:ring-0 resize-none overflow-hidden align-top"
+              style={{ minHeight: 48 }}
             />
           </div>
-          <div className="flex flex-wrap gap-2 items-center min-w-0 w-full">
-            <div className="relative shrink-0" ref={calendarRef}>
+          <div className="flex flex-wrap gap-2 items-center min-w-0 w-full text-sm">
+            <div className="relative shrink-0 w-[5.5rem]" ref={calendarRef}>
               <button
                 type="button"
                 onClick={() => setCalendarOpen((o) => !o)}
                 aria-label={dueDate ? `Due: ${formatDueDate(dueDate)}. Click to change` : 'Add due date (optional)'}
                 title={dueDate ? formatDueDate(dueDate) : 'Pick a date (optional)'}
                 className={cn(
-                  'flex items-center justify-center min-h-[44px] h-11 md:h-9 px-3 md:px-2.5 rounded-md border transition-colors shrink-0',
+                  'flex items-center justify-center min-h-[44px] h-11 md:h-9 w-full px-2 rounded-md border transition-colors',
                   dueDate
-                    ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                    : 'border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                    : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
                 )}
               >
                 <Calendar className="w-4 h-4 shrink-0" />
-                {dueDate && <span className="text-xs font-medium max-w-[3.5rem] md:max-w-[4rem] truncate hidden md:inline" title={formatDueDate(dueDate)}>{formatDueDate(dueDate)}</span>}
+                {dueDate && <span className="text-xs font-medium truncate ml-1" title={formatDueDate(dueDate)}>{formatDueDate(dueDate)}</span>}
               </button>
               {calendarOpen && (
                 <div className="absolute left-0 top-full mt-1 z-20 flex flex-col gap-2">
-                  <div className="datepicker-dark bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2">
+                  <div className="datepicker-dark bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-2">
                     <DatePicker
                       selected={dueDate ? new Date(dueDate) : null}
                       onChange={handleDateChange}
@@ -352,7 +370,7 @@ const TodoList = () => {
                   <button
                     type="button"
                     onClick={handleClearDate}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 text-xs"
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 text-xs"
                   >
                     <X className="w-3 h-3" />
                     Clear date
@@ -364,7 +382,7 @@ const TodoList = () => {
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               aria-label="Category"
-              className="shrink-0 min-h-[44px] h-11 md:h-9 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-sm"
+              className="flex-1 min-w-0 min-h-[44px] h-11 md:h-9 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-sm"
             >
               {CATEGORIES.map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.label}</option>
@@ -376,7 +394,7 @@ const TodoList = () => {
                 onChange={(e) => setSelectedNoteId(e.target.value ? e.target.value : null)}
                 aria-label="Add to note"
                 title="Add this task to a note (only notes with active tasks)"
-                className="shrink-0 min-h-[44px] h-11 md:h-9 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-sm max-w-[11rem] md:max-w-[10rem]"
+                className="flex-1 min-w-0 min-h-[44px] h-11 md:h-9 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-sm"
               >
                 <option value="">Other tasks</option>
                 {notesWithActiveTasks.map((note) => (
@@ -388,7 +406,7 @@ const TodoList = () => {
               type="submit"
               disabled={addLoading}
               aria-label="Add task"
-              className="shrink-0 min-h-[44px] h-11 md:h-9 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="shrink-0 min-h-[44px] h-11 md:h-9 px-4 py-2 bg-amber-500 text-zinc-950 rounded-md hover:bg-amber-600 transition-colors font-medium flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
               {addLoading ? 'Adding…' : 'Add'}
@@ -397,17 +415,21 @@ const TodoList = () => {
         </div>
       </form>
 
-      {/* Category Filter (All + categories + Done; "done" only as filter, not selectable when adding) */}
-      <div className="flex gap-1.5 sm:gap-2 mb-4 flex-wrap min-w-0 max-w-full" role="group" aria-label="Filter tasks by category">
+      {/* Filter pills – wrap so all categories are visible */}
+      <div
+        className="flex flex-wrap gap-2 mb-4 min-w-0 max-w-full"
+        role="group"
+        aria-label="Filter tasks by category"
+      >
         <button
           onClick={() => setFilterCategory(null)}
           aria-pressed={filterCategory === null}
           aria-label="Show all active tasks"
           className={cn(
-            'min-h-[44px] px-3 py-2.5 md:py-1.5 rounded-md text-xs font-medium transition-colors',
+            'min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-colors',
             filterCategory === null
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              ? 'bg-zinc-600 text-zinc-100'
+              : 'bg-zinc-800/80 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
           )}
         >
           All
@@ -422,19 +444,15 @@ const TodoList = () => {
               aria-pressed={filterCategory === cat.id}
               aria-label={`Filter by ${cat.label}${count > 0 ? `, ${count} active` : ''}`}
               className={cn(
-                'min-h-[44px] px-3 py-2.5 md:py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5',
+                'min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-colors flex items-center gap-1.5',
                 filterCategory === cat.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  ? 'bg-zinc-600 text-zinc-100'
+                  : 'bg-zinc-800/80 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
               )}
             >
-              <Icon className="w-3 h-3" />
+              <Icon className="w-3 h-3" aria-hidden />
               {cat.label}
-              {count > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 bg-slate-950/50 rounded text-[10px]">
-                  {count}
-                </span>
-              )}
+              {count > 0 && <span className="ml-0.5 opacity-80">{count}</span>}
             </button>
           );
         })}
@@ -443,18 +461,16 @@ const TodoList = () => {
           aria-pressed={filterCategory === FILTER_DONE_ID}
           aria-label="Show completed tasks"
           className={cn(
-            'min-h-[44px] px-3 py-2.5 md:py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5',
+            'min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider transition-colors flex items-center gap-1.5',
             filterCategory === FILTER_DONE_ID
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              ? 'bg-zinc-600 text-zinc-100'
+              : 'bg-zinc-800/80 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300'
           )}
         >
-          <CheckCircle2 className="w-3 h-3" />
+          <CheckCircle2 className="w-3 h-3" aria-hidden />
           Done
           {todos.filter((t) => t.completed).length > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 bg-slate-950/50 rounded text-[10px]">
-              {todos.filter((t) => t.completed).length}
-            </span>
+            <span className="ml-0.5 opacity-80">{todos.filter((t) => t.completed).length}</span>
           )}
         </button>
         {groupsByNote.length > 0 && (
@@ -470,40 +486,33 @@ const TodoList = () => {
             }}
             aria-label={groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? 'Expand all notes' : 'Collapse all notes'}
             title={groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? 'Expand all notes' : 'Collapse all notes'}
-            className={cn(
-              'min-h-[44px] px-3 py-2.5 md:py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5',
-              'bg-slate-800 text-slate-400 hover:bg-slate-700'
-            )}
+            className="min-h-[40px] px-3.5 py-2 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-zinc-800/80 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300 transition-colors flex items-center gap-1.5"
           >
             {groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? (
-              <>
-                <ChevronDown className="w-3 h-3" />
-                Expand all
-              </>
+              <ChevronDown className="w-3 h-3" aria-hidden />
             ) : (
-              <>
-                <ChevronUp className="w-3 h-3" />
-                Collapse all
-              </>
+              <ChevronUp className="w-3 h-3" aria-hidden />
             )}
+            {groupsByNote.every(([k]) => collapsedNoteIds.has(k)) ? 'Expand all' : 'Collapse all'}
           </button>
         )}
       </div>
 
-      {/* Todos List - Grouped by note (tree: note card → todos) */}
-      <div className="space-y-2">
+      {/* Section label + list */}
+      <p className="section-label">{sectionTitle}</p>
+      <div className="space-y-1.5">
         {sortedTodos.length === 0 ? (
-          <div className="text-center py-12">
-            <CheckCircle2 className="w-10 h-10 mx-auto text-slate-700 mb-2" />
+          <div className="empty-state">
+            <CheckCircle2 className="empty-state__icon" aria-hidden />
             {filterCategory === FILTER_DONE_ID ? (
               <>
-                <p className="text-slate-400 text-sm">No completed tasks</p>
-                <p className="text-slate-500 text-xs mt-1">Checked tasks will appear here</p>
+                <p className="empty-state__title">No completed tasks yet</p>
+                <p className="empty-state__sub">Checked tasks will show up here</p>
               </>
             ) : (
               <>
-                <p className="text-slate-400 text-sm">No todos yet</p>
-                <p className="text-slate-500 text-xs mt-1">Add your first task above</p>
+                <p className="empty-state__title">Your list is clear</p>
+                <p className="empty-state__sub">Add a task above to get started</p>
               </>
             )}
           </div>
@@ -511,34 +520,39 @@ const TodoList = () => {
           groupsByNote.map(([noteKey, { title: noteTitle, todos: groupTodos }]) => {
             const isCollapsed = collapsedNoteIds.has(noteKey);
             return (
-              <div key={noteKey} className="rounded-lg border border-slate-700/60 bg-slate-800/30 overflow-hidden">
+              <div key={noteKey} className="rounded-xl border border-zinc-700/50 bg-zinc-800/40 overflow-hidden">
                 <div className="flex items-center min-w-0">
                   <button
                     type="button"
                     onClick={() => toggleNoteGroup(noteKey)}
-                    className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left text-slate-300 hover:bg-slate-800/50 transition-colors"
+                    className="flex-1 min-w-0 flex items-center gap-2.5 px-3.5 py-2.5 text-left text-zinc-300 rounded-t-xl"
                     aria-expanded={!isCollapsed}
                   >
                     {isCollapsed ? (
-                      <ChevronRight className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
+                      <ChevronRight className="w-4 h-4 shrink-0 text-zinc-500" aria-hidden />
                     ) : (
-                      <ChevronDown className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
+                      <ChevronDown className="w-4 h-4 shrink-0 text-zinc-500" aria-hidden />
                     )}
-                    <BookOpen className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
+                    <BookOpen className="w-4 h-4 shrink-0 text-zinc-500" aria-hidden />
                     <span className="font-medium text-sm truncate">{noteTitle}</span>
-                    <span className="ml-1 text-xs text-slate-500 shrink-0">({groupTodos.length})</span>
+                    <span className="ml-1 text-xs text-zinc-500 shrink-0">({groupTodos.length})</span>
                   </button>
                   <span className="flex items-center gap-1 shrink-0 px-1" aria-label="Tasks per priority">
                     {(['red', 'yellow', 'cyan'] as const).map((color) => {
                       const count = groupTodos.filter((t) => t.color === color).length;
+                      if (count === 0) return null;
+                      const lightness = count === 1 ? 'mid' : 'full';
+                      const colorClasses = {
+                        red: { mid: 'bg-red-400 text-white', full: 'bg-red-500 text-white' },
+                        yellow: { mid: 'bg-yellow-400 text-white', full: 'bg-yellow-500 text-white' },
+                        cyan: { mid: 'bg-cyan-400 text-white', full: 'bg-cyan-500 text-white' },
+                      };
                       return (
                         <span
                           key={color}
                           className={cn(
-                            'flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded text-[10px] font-medium text-white',
-                            color === 'red' && 'bg-red-500',
-                            color === 'yellow' && 'bg-yellow-500',
-                            color === 'cyan' && 'bg-cyan-500'
+                            'flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded text-[10px] font-medium',
+                            colorClasses[color][lightness]
                           )}
                           title={`${color}: ${count}`}
                         >
@@ -547,7 +561,6 @@ const TodoList = () => {
                       );
                     })}
                   </span>
-                  {/* Same-width right column for all rows: bin or spacer so priority badges align */}
                   <span className="shrink-0 w-10 min-w-[2.5rem] flex items-center justify-center">
                     {backendUrl && noteKey !== '_no_note' ? (
                       <button
@@ -558,7 +571,7 @@ const TodoList = () => {
                         }}
                         disabled={deletingNoteId === noteKey}
                         aria-label={`Delete note "${noteTitle}" and all ${groupTodos.length} tasks`}
-                        className="p-2 -m-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50 flex items-center justify-center"
+                        className="p-2 -m-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50 flex items-center justify-center"
                       >
                         {deletingNoteId === noteKey ? (
                           <span className="text-xs">…</span>
@@ -575,166 +588,153 @@ const TodoList = () => {
                       const category = CATEGORIES.find((c) => c.id === todo.category);
                       const Icon = category?.icon;
                       return (
-                      <div
-                        key={todo.id}
-                        className={cn(
-                          'flex items-center gap-2 px-3 py-2 min-h-[44px] md:min-h-0 bg-slate-800/40 border border-slate-700/50 rounded-md transition-all hover:bg-slate-800/60 group',
-                          todo.completed && 'opacity-50'
-                        )}
-                      >
-                {/* Priority label – click to change color */}
-                <div className="relative flex-shrink-0" ref={openPriorityTodoId === todo.id ? priorityPopoverRef : undefined}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenPriorityTodoId((prev) => (prev === todo.id ? null : todo.id));
-                    }}
-                    aria-label="Change priority"
-                    title="Change priority"
-                    className={cn(
-                      'w-1 min-w-[4px] h-6 rounded-full flex-shrink-0 cursor-pointer transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:ring-offset-slate-800',
-                      colorConfig[todo.color]
-                    )}
-                  />
-                  {openPriorityTodoId === todo.id && (
-                    <div
-                      className="absolute left-0 top-full mt-1 z-30 flex gap-1.5 p-2 rounded-lg bg-slate-800 border border-slate-600 shadow-xl"
-                      role="listbox"
-                      aria-label="Priority colors"
-                    >
-                      {COLORS.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePriorityChange(todo, c.id);
-                          }}
-                          aria-label={c.label}
-                          title={c.label}
+                        <div
+                          key={todo.id}
                           className={cn(
-                            'w-6 h-6 rounded-full transition-all hover:scale-110',
-                            c.color,
-                            c.hover,
-                            todo.color === c.id && 'ring-2 ring-inset ring-white/50'
+                            'task-card flex items-center gap-2 group',
+                            todo.completed && 'task-card--completed'
                           )}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Checkbox - 44px touch target on mobile */}
-                <button
-                  onClick={async () => {
-                    const nextCompleted = !todo.completed;
-                    const id = todo.id;
-                    if (!nextCompleted) {
-                      const existing = completedTimeoutsRef.current.get(id);
-                      if (existing) {
-                        clearTimeout(existing);
-                        completedTimeoutsRef.current.delete(id);
-                      }
-                      setJustCompletedIds((prev) => {
-                        const next = new Set(prev);
-                        next.delete(id);
-                        return next;
-                      });
-                    }
-                    if (!backendUrl) {
-                      updateTodo({ ...todo, completed: nextCompleted });
-                      if (nextCompleted) {
-                        setJustCompletedIds((prev) => new Set(prev).add(id));
-                        const t = setTimeout(() => {
-                          setJustCompletedIds((prev) => {
-                            const next = new Set(prev);
-                            next.delete(id);
-                            return next;
-                          });
-                          completedTimeoutsRef.current.delete(id);
-                        }, 1000);
-                        completedTimeoutsRef.current.set(id, t);
-                      }
-                      return;
-                    }
-                    try {
-                      const updated = await backendApi.updateTodo(id, { completed: nextCompleted });
-                      updateTodo(updated);
-                      if (nextCompleted) {
-                        setJustCompletedIds((prev) => new Set(prev).add(id));
-                        const t = setTimeout(() => {
-                          setJustCompletedIds((prev) => {
-                            const next = new Set(prev);
-                            next.delete(id);
-                            return next;
-                          });
-                          completedTimeoutsRef.current.delete(id);
-                        }, 1000);
-                        completedTimeoutsRef.current.set(id, t);
-                      }
-                    } catch {
-                      setSyncError('Failed to update');
-                    }
-                  }}
-                  className="flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center -my-1 md:my-0"
-                  aria-label={todo.completed ? 'Mark incomplete' : 'Mark complete'}
-                  aria-pressed={todo.completed}
-                >
-                  {todo.completed ? (
-                    <CheckCircle2 className="w-4 h-4 text-blue-500" />
-                  ) : (
-                    <Circle className="w-4 h-4 text-slate-500 group-hover:text-blue-500" />
-                  )}
-                </button>
-
-                {/* Text */}
-                <span
-                  className={cn(
-                    'flex-1 text-sm transition-all',
-                    todo.completed
-                      ? 'line-through text-slate-500'
-                      : 'text-slate-200'
-                  )}
-                >
-                  {todo.text}
-                </span>
-
-                {/* Due date (optional) */}
-                {todo.dueDate != null && (
-                  <span className="shrink-0 flex items-center gap-1 text-xs text-slate-500" title={formatDueDate(todo.dueDate)}>
-                    <Calendar className="w-3 h-3" />
-                    {formatDueDate(todo.dueDate)}
-                  </span>
-                )}
-
-                {/* Category Icon */}
-                {Icon && (
-                  <div className="flex items-center gap-1 text-slate-500 text-xs">
-                    <Icon className="w-3 h-3" />
-                  </div>
-                )}
-
-                {/* Delete Button - 44px touch target, always visible on small screens */}
-                <button
-                  onClick={async () => {
-                    if (!backendUrl) {
-                      removeTodo(todo.id);
-                      return;
-                    }
-                    try {
-                      await backendApi.deleteTodo(todo.id);
-                      removeTodo(todo.id);
-                    } catch {
-                      setSyncError('Failed to delete');
-                    }
-                  }}
-                  aria-label="Delete task"
-                  className="flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-2 md:p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
-                >
-                  <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                </button>
-              </div>
+                        >
+                          <div className="relative flex-shrink-0" ref={openPriorityTodoId === todo.id ? priorityPopoverRef : undefined}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenPriorityTodoId((prev) => (prev === todo.id ? null : todo.id));
+                              }}
+                              aria-label="Change priority"
+                              title="Change priority"
+                              className={cn(
+                                'w-1 min-w-[4px] self-stretch min-h-[1.25rem] rounded-full flex-shrink-0 cursor-pointer transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:ring-offset-zinc-800',
+                                colorConfig[todo.color]
+                              )}
+                            />
+                            {openPriorityTodoId === todo.id && (
+                              <div
+                                className="absolute left-0 top-full mt-1 z-30 flex gap-1.5 p-2 rounded-lg bg-zinc-800 border border-zinc-600 shadow-xl"
+                                role="listbox"
+                                aria-label="Priority colors"
+                              >
+                                {COLORS.map((c) => (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePriorityChange(todo, c.id);
+                                    }}
+                                    aria-label={c.label}
+                                    title={c.label}
+                                    className={cn(
+                                      'w-6 h-6 rounded-full transition-all hover:scale-110',
+                                      c.color,
+                                      c.hover,
+                                      todo.color === c.id && 'ring-2 ring-inset ring-white/50'
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={async () => {
+                              const nextCompleted = !todo.completed;
+                              const id = todo.id;
+                              if (!nextCompleted) {
+                                const existing = completedTimeoutsRef.current.get(id);
+                                if (existing) {
+                                  clearTimeout(existing);
+                                  completedTimeoutsRef.current.delete(id);
+                                }
+                                setJustCompletedIds((prev) => {
+                                  const next = new Set(prev);
+                                  next.delete(id);
+                                  return next;
+                                });
+                              }
+                              if (!backendUrl) {
+                                updateTodo({ ...todo, completed: nextCompleted });
+                                if (nextCompleted) {
+                                  setJustCompletedIds((prev) => new Set(prev).add(id));
+                                  const t = setTimeout(() => {
+                                    setJustCompletedIds((prev) => {
+                                      const next = new Set(prev);
+                                      next.delete(id);
+                                      return next;
+                                    });
+                                    completedTimeoutsRef.current.delete(id);
+                                  }, 1000);
+                                  completedTimeoutsRef.current.set(id, t);
+                                }
+                                return;
+                              }
+                              try {
+                                const updated = await backendApi.updateTodo(id, { completed: nextCompleted });
+                                updateTodo(updated);
+                                if (nextCompleted) {
+                                  setJustCompletedIds((prev) => new Set(prev).add(id));
+                                  const t = setTimeout(() => {
+                                    setJustCompletedIds((prev) => {
+                                      const next = new Set(prev);
+                                      next.delete(id);
+                                      return next;
+                                    });
+                                    completedTimeoutsRef.current.delete(id);
+                                  }, 1000);
+                                  completedTimeoutsRef.current.set(id, t);
+                                }
+                              } catch {
+                                setSyncError('Failed to update');
+                              }
+                            }}
+                            className="flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center -my-1 md:my-0"
+                            aria-label={todo.completed ? 'Mark incomplete' : 'Mark complete'}
+                            aria-pressed={todo.completed}
+                          >
+                            {todo.completed ? (
+                              <CheckCircle2 className="w-4 h-4 text-amber-500" />
+                            ) : (
+                              <Circle className="w-4 h-4 text-zinc-500 group-hover:text-amber-500" />
+                            )}
+                          </button>
+                          <span
+                            className={cn(
+                              'flex-1 text-[15px] md:text-sm font-medium leading-snug transition-all min-w-0',
+                              todo.completed ? 'line-through text-zinc-500' : 'text-zinc-100'
+                            )}
+                          >
+                            {todo.text}
+                          </span>
+                          {todo.dueDate != null && (
+                            <span className="shrink-0 flex items-center gap-1 text-xs text-zinc-500" title={formatDueDate(todo.dueDate)}>
+                              <Calendar className="w-3 h-3" />
+                              {formatDueDate(todo.dueDate)}
+                            </span>
+                          )}
+                          {Icon && (
+                            <div className="flex items-center gap-1 text-zinc-500 text-xs">
+                              <Icon className="w-3 h-3" />
+                            </div>
+                          )}
+                          <button
+                            onClick={async () => {
+                              if (!backendUrl) {
+                                removeTodo(todo.id);
+                                return;
+                              }
+                              try {
+                                await backendApi.deleteTodo(todo.id);
+                                removeTodo(todo.id);
+                              } catch {
+                                setSyncError('Failed to delete');
+                              }
+                            }}
+                            aria-label="Delete task"
+                            className="flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-2 md:p-1 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
+                          >
+                            <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -745,11 +745,11 @@ const TodoList = () => {
         )}
       </div>
 
-      {/* Stats - Compact */}
+      {/* Stats – subtle footer */}
       {todos.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-500">
+        <div className="mt-5 pt-4 border-t border-zinc-800/60 flex items-center justify-center gap-4 text-[11px] uppercase tracking-wider text-zinc-500">
           <span>{activeTodos} active</span>
-          <span>{todos.filter((t) => t.completed).length} completed</span>
+          <span>{todos.filter((t) => t.completed).length} done</span>
           <span>{todos.length} total</span>
         </div>
       )}
