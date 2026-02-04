@@ -57,6 +57,8 @@ cd backend && cp .env.example .env && npm install && npm run dev   # → http://
 
 See [1-objectives.md](./1-objectives.md) for the full story and motivation.
 
+**How to use the app:** [docs/HOW-TO-USE.md](./docs/HOW-TO-USE.md) — run, configure, TODOs, notes, AI, voice, backend, and troubleshooting. **New user?** [docs/ONBOARDING.md](./docs/ONBOARDING.md) — first-time steps.
+
 ---
 
 ## Repository Structure
@@ -65,6 +67,8 @@ See [1-objectives.md](./1-objectives.md) for the full story and motivation.
 |------|-------------|
 | `my-notepad/` | Main app (React + Vite + TypeScript + Capacitor). [my-notepad/README.md](./my-notepad/README.md) |
 | `backend/` | Node.js backend: OpenAI + Supabase. [backend/README.md](./backend/README.md) |
+| `docs/HOW-TO-USE.md` | **User guide:** how to run and use the app |
+| `docs/ONBOARDING.md` | **Onboarding:** first-time steps for general users |
 | `1-objectives.md` | Why this app exists and what it’s for |
 | `PROJECT_SUMMARY.md` | Feature and stack overview |
 

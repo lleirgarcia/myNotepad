@@ -7,9 +7,9 @@ Todo side:
 - [X] When user selects a todo it means is finish/ is done so it goes to the end of the list. We added that this todos goes to "done" category/area.
 
 Notes side:
-- Once AI knows what is the whole note and has a summary, cereate a title of maximum 3-4 words.
-- System needs to save this title in the todos created in order to be able to group them.
-- In the todo list system will group the todos inside a tree, so the main "card" is the note from where it come and user can deploy it and see the todos.
+- [X] Once AI knows what is the whole note and has a summary, cereate a title of maximum 3-4 words.
+- [X] System needs to save this title in the todos created in order to be able to group them.
+- [X] In the todo list system will group the todos inside a tree, so the main "card" is the note from where it come and user can deploy it and see the todos.
 
 
 Tech criteria:
