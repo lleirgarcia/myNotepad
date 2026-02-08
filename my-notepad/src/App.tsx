@@ -127,7 +127,7 @@ function App() {
     } else {
       setCurrentUser(null);
     }
-  }, [backendUrl]); // Run on mount and when backend URL changes; hasAuthToken() read at run time
+  }, [backendUrl, location.pathname]); // Refetch when entering /app so name shows after login
 
   const handleSignOut = () => {
     clearAuthToken();
