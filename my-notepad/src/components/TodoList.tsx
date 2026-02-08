@@ -680,7 +680,7 @@ const TodoList = () => {
                 aria-label={dueDate ? `Due: ${formatDueDate(dueDate)}. Click to change` : 'Add due date (optional)'}
                 title={dueDate ? formatDueDate(dueDate) : 'Pick a date (optional)'}
                 className={cn(
-                  'flex items-center justify-center min-h-[44px] h-11 md:h-9 w-full px-2 rounded-md border transition-colors duration-200',
+                  'flex items-center justify-center h-12 min-h-[3rem] w-full px-2 rounded-md border transition-colors duration-200',
                   dueDate
                     ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
                     : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
@@ -719,7 +719,7 @@ const TodoList = () => {
                 value={selectedAreaId}
                 onChange={(e) => setSelectedAreaId(e.target.value)}
                 aria-labelledby="add-task-area-label"
-                className="w-full min-h-[44px] h-11 md:h-9 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-sm transition-colors duration-200 hover:border-zinc-600"
+                className="w-full h-12 min-h-[3rem] px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-base transition-colors duration-200 hover:border-zinc-600"
               >
                 {displayAreas.map((area) => (
                   <option key={area.id} value={area.id}>{area.name}</option>
@@ -734,7 +734,7 @@ const TodoList = () => {
                   onChange={(e) => setSelectedNoteId(e.target.value ? e.target.value : null)}
                   aria-labelledby="add-task-note-label"
                   title="Add this task to a note (only notes with active tasks)"
-                  className="w-full min-h-[44px] h-11 md:h-9 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-sm transition-colors duration-200 hover:border-zinc-600"
+                  className="w-full h-12 min-h-[3rem] px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 text-base transition-colors duration-200 hover:border-zinc-600"
                 >
                   <option value="">Other tasks</option>
                   {notesWithActiveTasks.map((note) => (
@@ -747,7 +747,7 @@ const TodoList = () => {
               type="submit"
               disabled={addLoading}
               aria-label="Add task"
-              className="shrink-0 min-h-[44px] h-11 md:h-9 px-4 py-2 bg-amber-500 text-zinc-950 rounded-md hover:bg-amber-600 active:scale-[0.98] transition-all duration-200 font-medium flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="shrink-0 h-12 min-h-[3rem] px-3 py-2 bg-amber-500 text-zinc-950 rounded-md hover:bg-amber-600 active:scale-[0.98] transition-all duration-200 font-medium flex items-center justify-center gap-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
               {addLoading ? 'Adding…' : 'Add'}
