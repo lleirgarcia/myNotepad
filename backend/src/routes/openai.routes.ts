@@ -1,8 +1,15 @@
 import { Router, Request, Response } from 'express';
+import { apiKeyAuth } from '../middleware/apiKeyAuth.js';
+import type { RequestWithUserId } from '../middleware/apiKeyAuth.js';
+import { getSupabaseAdmin } from '../lib/supabase.js';
 import { openAIService } from '../services/openai.service.js';
 import type { ChatMessage } from '../services/openai.service.js';
 
 export const openaiRouter = Router();
+
+function getUserId(req: Request): string {
+  return (req as RequestWithUserId).userId;
+}
 
 type ChatRequestBody = {
   messages: ChatMessage[];
@@ -75,12 +82,21 @@ openaiRouter.post('/complete', async (req: Request, res: Response): Promise<void
   }
 });
 
-openaiRouter.post('/notes', async (req: Request, res: Response): Promise<void> => {
+openaiRouter.post('/notes', apiKeyAuth, async (req: Request, res: Response): Promise<void> => {
   try {
+    const userId = getUserId(req);
     const body = req.body as NotesRequestBody;
     const content = typeof body?.content === 'string' ? body.content : '';
 
-    const result = await openAIService.processNote(content);
+    const supabase = getSupabaseAdmin();
+    const { data: areasRows } = await supabase
+      .from('areas')
+      .select('id, name')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+    const areas = (areasRows ?? []).map((r) => ({ id: r.id, name: r.name }));
+
+    const result = await openAIService.processNote(content, areas);
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

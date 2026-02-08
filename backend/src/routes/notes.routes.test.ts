@@ -18,13 +18,22 @@ vi.mock('../lib/supabase.js', () => ({
         return {
           select: (cols: string) => {
             mockSelect(cols);
-            return {
+            const chain = {
               eq: (key: string, val: string) => {
                 mockEq(key, val);
                 return {
                   order: (column: string, opts: unknown) => {
                     mockOrder(column, opts);
-                    return Promise.resolve({ data: [], error: null });
+                    return {
+                      order: (col2: string, opts2: unknown) => {
+                        mockOrder(col2, opts2);
+                        return Promise.resolve({ data: [], error: null });
+                      },
+                      limit: (n: number) => ({
+                        maybeSingle: () =>
+                          Promise.resolve({ data: cols === 'position' ? { position: 0 } : null, error: null }),
+                      }),
+                    };
                   },
                   eq: (_k2: string, _v2: string) => ({
                     maybeSingle: () => mockMaybeSingle(),
@@ -33,6 +42,7 @@ vi.mock('../lib/supabase.js', () => ({
                 };
               },
             };
+            return chain;
           },
           insert: (row: unknown) => {
             mockInsert(row);
@@ -108,7 +118,8 @@ describe('notes routes', () => {
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body).toHaveLength(0);
     expect(mockSelect).toHaveBeenCalledWith('*');
-    expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(mockOrder).toHaveBeenNthCalledWith(1, 'position', { ascending: true });
+    expect(mockOrder).toHaveBeenNthCalledWith(2, 'created_at', { ascending: true });
   });
 
   it('GET /api/notes/:id returns 404 when note not found', async () => {

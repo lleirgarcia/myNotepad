@@ -38,23 +38,25 @@ describe('apiKeyAuth', () => {
     expect(next).not.toHaveBeenCalled();
     expect(mockRes.status).toHaveBeenCalledWith(401);
     expect(mockRes.json).toHaveBeenCalledWith({
-      error: 'Invalid or missing API key. Send X-API-Key or Authorization: Bearer <key>.',
+      error: 'Missing auth. Send X-API-Key or Authorization: Bearer <token>.',
     });
   });
 
-  it('returns 401 when X-API-Key is wrong', () => {
+  it('returns 401 when X-API-Key is wrong', async () => {
     mockReq.headers!['x-api-key'] = 'wrong-key';
     apiKeyAuth(mockReq as Request, mockRes as Response, next);
+    await new Promise((r) => setImmediate(r));
     expect(next).not.toHaveBeenCalled();
     expect(mockRes.status).toHaveBeenCalledWith(401);
     expect(mockRes.json).toHaveBeenCalledWith({
-      error: 'Invalid or missing API key. Send X-API-Key or Authorization: Bearer <key>.',
+      error: 'Invalid or expired token. Sign in again or use a valid API key.',
     });
   });
 
-  it('returns 401 when Authorization Bearer is wrong', () => {
+  it('returns 401 when Authorization Bearer is wrong', async () => {
     mockReq.headers!['authorization'] = 'Bearer wrong-key';
     apiKeyAuth(mockReq as Request, mockRes as Response, next);
+    await new Promise((r) => setImmediate(r));
     expect(next).not.toHaveBeenCalled();
     expect(mockRes.status).toHaveBeenCalledWith(401);
   });

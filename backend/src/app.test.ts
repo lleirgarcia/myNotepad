@@ -12,7 +12,7 @@ describe('app', () => {
   it('GET /api/notes without auth returns 401', async () => {
     const res = await request(app).get('/api/notes');
     expect(res.status).toBe(401);
-    expect(res.body.error).toContain('API key');
+    expect(res.body.error).toMatch(/auth|API-Key|Bearer/i);
   });
 
   it('GET /api/notes with valid X-API-Key reaches route (mock returns 200)', async () => {

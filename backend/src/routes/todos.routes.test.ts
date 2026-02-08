@@ -120,7 +120,7 @@ describe('todos routes', () => {
     const res = await withAuth(request(app).get('/api/todos'));
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(mockSelect).toHaveBeenCalledWith('*, notes(title)');
+    expect(mockSelect).toHaveBeenCalledWith('*, notes(title, content), areas(id, name, icon)');
   });
 
   it('POST /api/todos returns 400 when text missing', async () => {

@@ -24,13 +24,17 @@ function mapRowToNote(row: {
   id: string;
   title: string;
   content: string;
+  position?: number;
   created_at: string;
+  updated_at?: string;
 }) {
   return {
     id: row.id,
     title: row.title,
     content: row.content,
+    position: typeof row.position === 'number' ? row.position : 0,
     createdAt: new Date(row.created_at).getTime(),
+    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : new Date(row.created_at).getTime(),
   };
 }
 
@@ -42,7 +46,8 @@ notesRouter.get('/', async (req: Request, res: Response): Promise<void> => {
       .from('notes')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true });
     if (error) {
       handleSupabaseError(res, error);
       return;
@@ -101,10 +106,19 @@ notesRouter.post('/', async (req: Request, res: Response): Promise<void> => {
       return;
     }
     const supabase = getSupabaseAdmin();
+    const { data: maxRow } = await supabase
+      .from('notes')
+      .select('position')
+      .eq('user_id', userId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextPosition = (maxRow?.position ?? -1) + 1;
     const row = {
       user_id: userId,
       title: body.title.trim(),
       content: typeof body.content === 'string' ? body.content : '',
+      position: nextPosition,
     };
     const { data, error } = await supabase.from('notes').insert(row).select().single();
     if (error) {
@@ -136,6 +150,7 @@ notesRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => 
       res.status(400).json({ error: 'No updates provided' });
       return;
     }
+    update.updated_at = new Date().toISOString();
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('notes')
@@ -157,6 +172,35 @@ notesRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => 
       });
       return;
     }
+    res.status(500).json({ error: msg });
+  }
+});
+
+/** PUT /api/notes/reorder — set custom order. Body: { orderedIds: string[] } (note ids in desired order). */
+notesRouter.put('/reorder', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = getUserId(req);
+    const body = req.body as { orderedIds?: string[] };
+    const orderedIds = Array.isArray(body.orderedIds) ? body.orderedIds.filter((id) => typeof id === 'string') : [];
+    if (orderedIds.length === 0) {
+      res.status(400).json({ error: 'orderedIds required (non-empty array of note ids)' });
+      return;
+    }
+    const supabase = getSupabaseAdmin();
+    for (let i = 0; i < orderedIds.length; i++) {
+      const { error } = await supabase
+        .from('notes')
+        .update({ position: i, updated_at: new Date().toISOString() })
+        .eq('id', orderedIds[i])
+        .eq('user_id', userId);
+      if (error) {
+        handleSupabaseError(res, error);
+        return;
+      }
+    }
+    res.status(204).send();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed to reorder notes';
     res.status(500).json({ error: msg });
   }
 });

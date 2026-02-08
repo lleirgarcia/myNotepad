@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../app.js';
+import { config } from '../config.js';
 
 const mockChat = vi.fn();
 const mockComplete = vi.fn();
@@ -15,6 +16,26 @@ vi.mock('../services/openai.service.js', () => ({
     healthCheck: () => mockHealthCheck(),
   },
 }));
+
+vi.mock('../lib/supabase.js', () => ({
+  getSupabaseAdmin: () => ({
+    from: (table: string) => {
+      if (table === 'areas') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: () => Promise.resolve({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
+      return {};
+    },
+  }),
+}));
+
+const withAuth = (req: { set: (k: string, v: string) => unknown }) =>
+  req.set('X-API-Key', config.backendApiKey);
 
 describe('openai routes', () => {
   beforeEach(() => {
@@ -78,22 +99,20 @@ describe('openai routes', () => {
     );
   });
 
-  it('POST /api/openai/notes returns 200 and insight', async () => {
+  it('POST /api/openai/notes returns 200 and insight (requires auth, passes user areas)', async () => {
     mockProcessNote.mockResolvedValue({
       title: 'My Note',
       summary: 'Summary',
       tags: ['work'],
       actionItems: ['Item 1'],
     });
-    const res = await request(app)
-      .post('/api/openai/notes')
-      .send({ content: 'Note text' });
+    const res = await withAuth(request(app).post('/api/openai/notes')).send({ content: 'Note text' });
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('My Note');
     expect(res.body.summary).toBe('Summary');
     expect(res.body.tags).toEqual(['work']);
     expect(res.body.actionItems).toEqual(['Item 1']);
-    expect(mockProcessNote).toHaveBeenCalledWith('Note text');
+    expect(mockProcessNote).toHaveBeenCalledWith('Note text', []);
   });
 
   it('GET /api/openai/health returns 200 when OpenAI ok', async () => {
