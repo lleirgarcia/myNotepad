@@ -308,7 +308,7 @@ export default function Landing() {
                     {i + 1}
                   </span>
                   <span>{text}</span>
-                </li>
+            </li>
               ))}
             </ul>
           </section>
@@ -337,7 +337,7 @@ export default function Landing() {
                 <li key={i} className="flex gap-3 text-zinc-300 text-sm sm:text-base">
                   <XCircle className="w-5 h-5 shrink-0 text-amber-500/70 mt-0.5" aria-hidden />
                   <span>{text}</span>
-                </li>
+            </li>
               ))}
             </ul>
           </section>
@@ -366,9 +366,9 @@ export default function Landing() {
                 <li key={i} className="flex gap-3 text-zinc-300 text-sm sm:text-base">
                   <Icon className="w-5 h-5 shrink-0 text-amber-500/80 mt-0.5" aria-hidden />
                   <span>{text}</span>
-                </li>
+            </li>
               ))}
-            </ul>
+          </ul>
           </section>
 
           {/* FAQ: matches FAQPage schema for rich results */}
@@ -463,12 +463,12 @@ export default function Landing() {
 
           {hasAuthToken() && (
             <p className="text-center">
-              <Link
-                to="/app"
+          <Link
+            to="/app"
                 className="inline-flex items-center justify-center gap-2 min-h-[44px] px-5 py-2.5 rounded-xl border border-zinc-600 text-zinc-300 text-sm hover:bg-zinc-800/80 transition-colors"
-              >
+          >
                 Open app (already signed in)
-              </Link>
+          </Link>
             </p>
           )}
         </div>
