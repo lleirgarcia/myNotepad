@@ -105,7 +105,7 @@ const PERSONAL_STUFF_NAME = 'Personal stuff';
 areasRouter.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = getUserId(req);
-    const id = req.params.id?.trim();
+    const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
     if (!id) {
       res.status(400).json({ error: 'Area id required' });
       return;
