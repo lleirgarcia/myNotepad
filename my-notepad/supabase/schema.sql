@@ -1,13 +1,36 @@
 -- Run this in Supabase Dashboard → SQL Editor (personal use: API key + DEFAULT_USER_ID)
 -- user_id is a UUID for scoping only (no FK to auth.users when using backend API key).
 
+create table if not exists public.users (
+  id uuid primary key default gen_random_uuid(),
+  google_sub text not null unique,
+  email text,
+  name text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists users_google_sub_idx on public.users (google_sub);
+
 create table if not exists public.notes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
   title text not null,
   content text not null default '',
+  position integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists notes_user_id_position_idx on public.notes (user_id, position);
+
+create table if not exists public.areas (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  name text not null,
+  icon text not null default 'lightbulb',
+  is_default boolean not null default false,
   created_at timestamptz not null default now()
 );
+create index if not exists areas_user_id_idx on public.areas (user_id);
 
 create table if not exists public.todos (
   id uuid primary key default gen_random_uuid(),
@@ -18,8 +41,11 @@ create table if not exists public.todos (
   category text not null default 'work',
   due_date timestamptz,
   note_id uuid references public.notes(id) on delete set null,
-  created_at timestamptz not null default now()
+  area_id uuid references public.areas(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+create index if not exists todos_area_id_idx on public.todos (area_id);
 
 create table if not exists public.whiteboard (
   user_id uuid primary key,
@@ -28,6 +54,7 @@ create table if not exists public.whiteboard (
 );
 
 -- Row Level Security: users only see/edit their own data
+alter table public.users enable row level security;
 alter table public.notes enable row level security;
 alter table public.todos enable row level security;
 alter table public.whiteboard enable row level security;
