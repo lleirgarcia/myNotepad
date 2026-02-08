@@ -156,14 +156,25 @@ const TodoList = () => {
       return;
     }
     let cancelled = false;
-    backendApi.fetchAreas().then((list) => {
-      if (!cancelled) {
-        setAreas(list);
-        if (list.length > 0 && (!selectedAreaId || !list.some((a) => a.id === selectedAreaId))) {
-          setSelectedAreaId(list[0].id);
+    backendApi
+      .fetchAreas()
+      .then((list) => {
+        if (!cancelled) {
+          const areasToUse = list.length > 0 ? list : FALLBACK_AREAS;
+          setAreas(areasToUse);
+          if (areasToUse.length > 0 && (!selectedAreaId || !areasToUse.some((a) => a.id === selectedAreaId))) {
+            setSelectedAreaId(areasToUse[0].id);
+          }
         }
-      }
-    });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAreas(FALLBACK_AREAS);
+          if (!selectedAreaId || !FALLBACK_AREAS.some((a) => a.id === selectedAreaId)) {
+            setSelectedAreaId(FALLBACK_AREAS[0]?.id ?? '');
+          }
+        }
+      });
     return () => {
       cancelled = true;
     };

@@ -56,17 +56,15 @@ authRouter.get('/google', (req: Request, res: Response) => {
     });
     return;
   }
-  // Build callback URL for Google: must be https in production (Railway proxy may send req.protocol as http)
-  let backendOrigin = config.backendUrl || `${req.protocol}://${req.get('host') ?? ''}`;
-  backendOrigin = backendOrigin.replace(/\/$/, '');
-  if (!backendOrigin.startsWith('http')) backendOrigin = `https://${backendOrigin}`;
-  else if (backendOrigin.startsWith('http://') && !backendOrigin.includes('localhost'))
-    backendOrigin = backendOrigin.replace(/^http:\/\//, 'https://');
-  const callbackUrl = `${backendOrigin}/api/auth/google/callback`;
+  // Use frontend as redirect_uri so Google redirects to the app (shows app name in consent screen)
+  const frontendRedirectUri = redirectUri.replace(/\/$/, '');
+  const finalRedirectUri = frontendRedirectUri.includes('/auth/callback')
+    ? frontendRedirectUri
+    : frontendRedirectUri + '/auth/callback';
   const state = Buffer.from(JSON.stringify({ redirect_uri: redirectUri }), 'utf8').toString('base64url');
   const params = new URLSearchParams({
     client_id: config.google.clientId,
-    redirect_uri: callbackUrl,
+    redirect_uri: finalRedirectUri,
     response_type: 'code',
     scope: 'openid email profile',
     state,
@@ -76,7 +74,104 @@ authRouter.get('/google', (req: Request, res: Response) => {
   res.redirect(302, `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
 });
 
-/** GET /api/auth/google/callback?code=...&state=... — exchange code, create/update user, redirect to app with JWT */
+/** Shared: exchange code for tokens, get profile, create/update user, return userId (or throw) */
+async function exchangeCodeAndGetUserId(code: string, redirectUri: string): Promise<string> {
+  const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: config.google.clientId,
+      client_secret: config.google.clientSecret,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    }),
+  });
+  if (!tokenRes.ok) {
+    const err = await tokenRes.text();
+    throw new Error(`Google token: ${err}`);
+  }
+  const tokenData = (await tokenRes.json()) as { access_token?: string };
+  const accessToken = tokenData.access_token;
+  if (!accessToken) throw new Error('No access token from Google');
+
+  const userRes = await fetch(GOOGLE_USERINFO_URL, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!userRes.ok) throw new Error('Google userinfo failed');
+  const profile = (await userRes.json()) as { sub?: string; id?: string; email?: string; name?: string };
+  const googleSub = profile.sub ?? profile.id ?? null;
+  if (!googleSub) throw new Error('Google userinfo missing sub/id');
+  const email = profile.email ?? null;
+  const name = profile.name ?? null;
+
+  const supabase = getSupabaseAdmin();
+  const { data: existing } = await supabase
+    .from('users')
+    .select('id')
+    .eq('google_sub', googleSub)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from('users')
+      .update({ email, name, updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
+    return existing.id;
+  }
+
+  const { data: inserted, error } = await supabase
+    .from('users')
+    .insert({ google_sub: googleSub, email, name })
+    .select('id')
+    .single();
+  if (error) {
+    console.error('[auth] Insert user error:', error.message, error.code, error.details);
+    throw error;
+  }
+  await supabase.from('areas').insert([
+    { user_id: inserted.id, name: 'Work', icon: 'briefcase', is_default: true },
+    { user_id: inserted.id, name: 'Personal stuff', icon: 'home', is_default: true },
+    { user_id: inserted.id, name: 'Ideas / thoughts', icon: 'lightbulb', is_default: true },
+  ]);
+  return inserted.id;
+}
+
+/** POST /api/auth/google/exchange — body: { code, redirect_uri }. Exchange code (frontend is redirect_uri), return { token }. */
+authRouter.post('/google/exchange', async (req: Request, res: Response) => {
+  if (!config.google.enabled || !config.jwt.enabled) {
+    res.status(503).json({ error: 'Google login is not configured.' });
+    return;
+  }
+  const body = req.body as { code?: string; redirect_uri?: string };
+  const code = typeof body.code === 'string' ? body.code.trim() : '';
+  const redirectUri = typeof body.redirect_uri === 'string' ? body.redirect_uri.trim() : '';
+  if (!code) {
+    res.status(400).json({ error: 'Missing code.' });
+    return;
+  }
+  const base = redirectUri.replace(/\/$/, '');
+  const finalRedirectUri = base
+    ? (base.includes('/auth/callback') ? base : base + '/auth/callback')
+    : '';
+  if (!finalRedirectUri || !isAllowedRedirectUri(finalRedirectUri)) {
+    res.status(400).json({ error: 'Invalid or missing redirect_uri.' });
+    return;
+  }
+  try {
+    const userId = await exchangeCodeAndGetUserId(code, finalRedirectUri);
+    const token = await issueToken(userId);
+    res.status(200).json({ token });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Exchange failed';
+    console.error('[auth] google/exchange error:', e);
+    if (msg.includes('Google token')) res.status(400).json({ error: 'Invalid or expired code. Try signing in again.' });
+    else if (msg.includes('userinfo')) res.status(400).json({ error: 'Could not load profile. Try again.' });
+    else res.status(500).json({ error: 'Sign-in failed. Try again.' });
+  }
+});
+
+/** GET /api/auth/google/callback?code=...&state=... — legacy: exchange code, redirect to app with JWT (kept for old redirect_uri) */
 authRouter.get('/google/callback', async (req: Request, res: Response) => {
   if (!config.google.enabled || !config.jwt.enabled) {
     res.status(503).json({ error: 'Google login is not configured.' });

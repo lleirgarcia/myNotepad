@@ -123,7 +123,7 @@ function App() {
 
   useEffect(() => {
     if (hasAuthToken() && backendUrl) {
-      backendApi.getCurrentUser().then(setCurrentUser);
+      backendApi.getCurrentUser().then(setCurrentUser).catch(() => setCurrentUser(null));
     } else {
       setCurrentUser(null);
     }
@@ -158,14 +158,10 @@ function App() {
         )}
         {hasAuthToken() && !isDemo && (
           <div className="flex items-center gap-2 shrink-0 text-sm">
-            {(currentUser?.name || currentUser?.email) && (
-              <>
-                <span className="text-zinc-500 truncate max-w-[8rem] sm:max-w-[12rem]" title={currentUser.name || currentUser.email || undefined}>
-                  {currentUser.name || currentUser.email}
-                </span>
-                <span className="text-zinc-600" aria-hidden>|</span>
-              </>
-            )}
+            <span className="text-zinc-500 truncate max-w-[8rem] sm:max-w-[12rem]" title={currentUser?.name || currentUser?.email || undefined}>
+              {currentUser?.name || currentUser?.email || 'Account'}
+            </span>
+            <span className="text-zinc-600" aria-hidden>|</span>
             <button
               type="button"
               onClick={handleSignOut}

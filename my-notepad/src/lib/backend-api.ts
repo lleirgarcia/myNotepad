@@ -38,6 +38,19 @@ export function getGoogleLoginUrl(): string {
   return `${baseUrl}/api/auth/google?redirect_uri=${encodeURIComponent(redirectUri)}`;
 }
 
+/** Exchange Google OAuth code for JWT (frontend is redirect_uri). */
+export async function exchangeGoogleCode(code: string, redirectUri: string): Promise<{ token: string }> {
+  const res = await fetch(`${baseUrl}/api/auth/google/exchange`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, redirect_uri: redirectUri }),
+  });
+  const data = (await res.json()) as { token?: string; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Exchange failed');
+  if (!data.token) throw new Error('No token in response');
+  return { token: data.token };
+}
+
 export function hasAuthToken(): boolean {
   if (typeof window === 'undefined') return false;
   return Boolean(localStorage.getItem(AUTH_TOKEN_KEY));

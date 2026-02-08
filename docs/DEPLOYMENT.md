@@ -50,6 +50,8 @@ Despliega primero el backend y obtén la URL pública (ej. `https://my-notepad-a
 
 El front en producción usará `VITE_BACKEND_URL` para llamar al API; no hace falta tocar código si ya usas `import.meta.env.VITE_BACKEND_URL`.
 
+**Importante:** Si en Vercel no configuras `VITE_BACKEND_URL` (y opcionalmente `VITE_BACKEND_API_KEY`), en producción no se verán el nombre/email del usuario ni las áreas del backend (sí se mostrará "Account" y áreas por defecto locales como fallback). Añade ambas variables en **Project → Settings → Environment Variables** y redeploya.
+
 ---
 
 ## 3. CORS
