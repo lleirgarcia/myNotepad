@@ -6,9 +6,10 @@ import * as backendApi from '../lib/backend-api';
 import { processNote, type NoteInsight } from '../lib/openai-api';
 import { cn } from '../lib/utils';
 import { Sparkles, ChevronDown, ChevronUp, Mic } from 'lucide-react';
+import { useIsDemo } from '../contexts/DemoContext';
 
 const DEBOUNCE_MS = 800;
-const backendUrl = import.meta.env.VITE_BACKEND_URL?.trim() || '';
+const DEMO_MAX_CHARS = 400;
 
 interface SpeechRecognitionLike {
   continuous: boolean;
@@ -28,6 +29,8 @@ const getSpeechRecognition = (): (new () => SpeechRecognitionLike) | undefined =
 };
 
 const NotesList = () => {
+  const isDemo = useIsDemo();
+  const backendUrl = isDemo ? '' : (import.meta.env.VITE_BACKEND_URL?.trim() || '');
   const { whiteboard, setWhiteboardContent, addTodo } = useStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,6 +54,7 @@ const NotesList = () => {
   const [voiceLanguage, setVoiceLanguage] = useState<'es-ES' | 'en-US'>(() =>
     typeof navigator !== 'undefined' && navigator.language.startsWith('es') ? 'es-ES' : 'en-US'
   );
+  const [demoProcessUsed, setDemoProcessUsed] = useState(false);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -80,6 +84,13 @@ const NotesList = () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
   }, []);
 
+  useEffect(() => {
+    if (!isDemo) return;
+    if (whiteboard.length > DEMO_MAX_CHARS) {
+      setWhiteboardContent(whiteboard.slice(0, DEMO_MAX_CHARS));
+    }
+  }, [isDemo, whiteboard.length, setWhiteboardContent]);
+
   whiteboardRef.current = whiteboard;
 
   useEffect(() => {
@@ -93,18 +104,41 @@ const NotesList = () => {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
+    let value = e.target.value;
+    if (isDemo && value.length > DEMO_MAX_CHARS) value = value.slice(0, DEMO_MAX_CHARS);
     setWhiteboardContent(value);
     syncToBackend(value);
   };
 
-  const handleProcessFullText = () => {
+  const handleProcessFullText = async () => {
     const content = whiteboard.trim();
     if (!content || insightLoading) return;
+    if (isDemo && demoProcessUsed) return;
     setInsightError(null);
     setInsightLoading(true);
     setInsightOpen(true);
     setTodosCreated(0);
+    if (isDemo) setDemoProcessUsed(true);
+
+    const titleFromContent = (text: string) => {
+      const firstLine = text.trim().split(/\n/)[0]?.trim() || '';
+      return firstLine.slice(0, 100) || 'Note';
+    };
+
+    // Save the full note to the database as soon as the user clicks "Process with AI"
+    let noteId: string | null = null;
+    if (backendUrl) {
+      try {
+        const note = await backendApi.createNote({
+          title: titleFromContent(content),
+          content,
+        });
+        noteId = note.id;
+      } catch {
+        // continue; todos won't be linked to a note
+      }
+    }
+
     processNote(content)
       .then((result) => {
         setInsight(result);
@@ -116,27 +150,14 @@ const NotesList = () => {
           let created = 0;
           const reversed = [...result.actionItems].reverse();
           if (backendUrl) {
-            // AI returns a short title (max 3–4 words); use it to identify the note
-            const shortTitleFromWords = (s: string) =>
-              s.trim().split(/\s+/).filter(Boolean).slice(0, 4).join(' ') || 'Note';
-            const noteTitle = shortTitleFromWords(result.title ?? '') || 'Note';
-            let noteId: string | null = null;
-            try {
-              const note = await backendApi.createNote({
-                title: noteTitle.slice(0, 50),
-                content,
-              });
-              noteId = note.id;
-            } catch {
-              // continue without note link
-            }
+            const areaId = result.areaId ?? undefined;
             for (const text of reversed) {
               if (!text.trim()) continue;
               try {
                 const todo = await backendApi.createTodo({
                   text: text.trim(),
                   color: 'cyan',
-                  category: 'ideas',
+                  areaId: areaId ?? undefined,
                   dueDate: null,
                   noteId: noteId ?? undefined,
                 });
@@ -147,16 +168,23 @@ const NotesList = () => {
               }
             }
           } else {
+            const areaId = result.areaId ?? undefined;
+            const areaName = areaId ? undefined : 'Ideas / thoughts';
             for (const text of reversed) {
               if (!text.trim()) continue;
+              const now = Date.now();
               addTodo({
                 id: crypto.randomUUID(),
                 text: text.trim(),
                 completed: false,
                 color: 'cyan',
-                category: 'ideas',
+                category: areaName ?? 'Ideas / thoughts',
+                areaId: areaId ?? null,
+                areaName: areaName ?? 'Ideas / thoughts',
+                areaIcon: 'lightbulb',
                 dueDate: null,
-                createdAt: Date.now(),
+                createdAt: now,
+                updatedAt: now,
               });
               created += 1;
             }
@@ -385,19 +413,25 @@ const NotesList = () => {
   return (
     <div className="h-full flex flex-col min-w-0 max-w-full overflow-hidden">
       <p className="section-label mb-3">Notes</p>
+      {isDemo && (
+        <p className="mb-3 text-xs text-zinc-500 rounded-lg bg-zinc-800/60 border border-zinc-700/60 px-3 py-2">
+          In this demo: the note is limited to <strong>{DEMO_MAX_CHARS} characters</strong> and you can only run <strong>«Process with AI»</strong> once.
+        </p>
+      )}
       <textarea
         ref={textareaRef}
         value={whiteboard}
         onChange={handleChange}
         placeholder="Start writing… Your notes are saved automatically. Use «Process with AI» below for a summary and action items."
         aria-label="Notes - auto-saved"
+        maxLength={isDemo ? DEMO_MAX_CHARS : undefined}
         className="quick-add-bar w-full max-w-full min-w-0 min-h-[35vh] px-4 py-3.5 bg-zinc-950/80 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 resize-none leading-relaxed box-border text-[15px] rounded-xl"
         style={{
           minHeight: '35vh',
           maxHeight: 'none',
           overflow: 'hidden',
         }}
-        autoFocus
+        autoFocus={!Capacitor.isNativePlatform()}
       />
       {/* Rest: voice, stats, AI */}
       <div className="flex-1 min-w-0 flex flex-col gap-2 mt-3">
@@ -464,16 +498,16 @@ const NotesList = () => {
         </span>
         <span>{lineCount} lines</span>
         <span>{wordCount} words</span>
-        <span>{charCount} chars</span>
+        <span>{charCount}{isDemo ? ` / ${DEMO_MAX_CHARS}` : ''} chars</span>
         <button
           type="button"
           onClick={handleProcessFullText}
-          disabled={!whiteboard.trim() || insightLoading}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-zinc-700/80 text-zinc-200 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-[11px] uppercase tracking-wider"
+          disabled={!whiteboard.trim() || insightLoading || (isDemo && demoProcessUsed)}
+          className="flex items-center gap-1.5 min-h-[44px] px-3 py-2 rounded-full bg-zinc-700/80 text-zinc-200 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-[11px] uppercase tracking-wider"
           aria-label="Process full text and get AI insights"
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-400" aria-hidden />
-          {insightLoading ? 'Processing…' : 'Process with AI'}
+          {insightLoading ? 'Processing…' : isDemo && demoProcessUsed ? 'Process with AI (used)' : 'Process with AI'}
         </button>
       </div>
 
@@ -482,7 +516,7 @@ const NotesList = () => {
         <button
           type="button"
           onClick={() => setInsightOpen((o) => !o)}
-          className="w-full px-4 py-3 flex items-center justify-between gap-2 text-left text-zinc-200 hover:bg-zinc-800/60 transition-colors text-sm font-medium"
+          className="w-full min-h-[44px] px-4 py-3 flex items-center justify-between gap-2 text-left text-zinc-200 hover:bg-zinc-800/60 transition-colors text-sm font-medium"
           aria-expanded={insightOpen}
         >
           <span className="flex items-center gap-1.5 font-medium">
