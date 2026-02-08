@@ -62,6 +62,8 @@ See [1-objectives.md](./1-objectives.md) for the full story and motivation.
 
 **How to use the app:** [docs/HOW-TO-USE.md](./docs/HOW-TO-USE.md) — run, configure, TODOs, notes, AI, voice, backend, and troubleshooting.
 
+**Deploy:** Frontend on **Vercel** (root directory: `my-notepad`), backend on Railway or Render. See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+
 ---
 
 ## Repository Structure

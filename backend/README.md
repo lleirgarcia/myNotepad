@@ -39,6 +39,39 @@ npm run test:coverage # coverage report
 
 Tests run automatically before each commit (via [Husky](https://typicode.github.io/husky/) in the repo root). To skip: `git commit --no-verify`.
 
+### Real API tests (live backend)
+
+Tests in `e2e-api/` call a **real** backend (e.g. production on Railway). No mocks.
+
+**Sanity check (prod up):**
+
+```bash
+npm run test:sanity
+```
+
+Hits `GET /health` on the default prod URL and asserts 200 + `{ status: 'ok', service: 'my-notepad-backend' }`. Override URL with `E2E_API_BASE_URL`.
+
+**Full API tests:**
+
+```bash
+# Default base URL: https://mynotepad-production.up.railway.app
+npm run test:api
+```
+
+- **Without API key:** only health tests run (GET `/health`, GET `/api/openai/health`).
+- **With API key:** all suites run (notes, todos, whiteboard, areas). Set `E2E_API_KEY` (or `BACKEND_API_KEY`) to the backend’s API key.
+
+Optional env:
+
+- `E2E_API_BASE_URL` — base URL (default: `https://mynotepad-production.up.railway.app`)
+- `E2E_API_KEY` or `BACKEND_API_KEY` — API key for protected routes
+
+Example:
+
+```bash
+E2E_API_KEY=your-production-api-key npm run test:api
+```
+
 Server runs at `http://localhost:3000` by default. Set `PORT` in `.env` to change.
 
 ## API

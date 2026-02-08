@@ -10,7 +10,9 @@
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:api": "vitest run --config vitest.api.config.ts",
+    "test:sanity": "vitest run e2e-api/sanity.spec.ts --config vitest.api.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3",

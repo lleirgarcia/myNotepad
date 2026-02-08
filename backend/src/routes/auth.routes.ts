@@ -49,8 +49,13 @@ authRouter.get('/google', (req: Request, res: Response) => {
     });
     return;
   }
-  const backendOrigin = config.backendUrl || `${req.protocol}://${req.get('host') ?? ''}`;
-  const callbackUrl = `${backendOrigin.replace(/\/$/, '')}/api/auth/google/callback`;
+  // Build callback URL for Google: must be https in production (Railway proxy may send req.protocol as http)
+  let backendOrigin = config.backendUrl || `${req.protocol}://${req.get('host') ?? ''}`;
+  backendOrigin = backendOrigin.replace(/\/$/, '');
+  if (!backendOrigin.startsWith('http')) backendOrigin = `https://${backendOrigin}`;
+  else if (backendOrigin.startsWith('http://') && !backendOrigin.includes('localhost'))
+    backendOrigin = backendOrigin.replace(/^http:\/\//, 'https://');
+  const callbackUrl = `${backendOrigin}/api/auth/google/callback`;
   const state = Buffer.from(JSON.stringify({ redirect_uri: redirectUri }), 'utf8').toString('base64url');
   const params = new URLSearchParams({
     client_id: config.google.clientId,
@@ -91,8 +96,12 @@ authRouter.get('/google/callback', async (req: Request, res: Response) => {
     redirectUri = base + '/auth/callback';
   }
 
-  const backendOrigin = config.backendUrl || `${req.protocol}://${req.get('host') ?? ''}`;
-  const callbackUrl = `${backendOrigin.replace(/\/$/, '')}/api/auth/google/callback`;
+  let backendOrigin = config.backendUrl || `${req.protocol}://${req.get('host') ?? ''}`;
+  backendOrigin = backendOrigin.replace(/\/$/, '');
+  if (!backendOrigin.startsWith('http')) backendOrigin = `https://${backendOrigin}`;
+  else if (backendOrigin.startsWith('http://') && !backendOrigin.includes('localhost'))
+    backendOrigin = backendOrigin.replace(/^http:\/\//, 'https://');
+  const callbackUrl = `${backendOrigin}/api/auth/google/callback`;
 
   try {
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
