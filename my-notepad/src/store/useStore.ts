@@ -6,10 +6,15 @@ export interface Todo {
   completed: boolean;
   color: 'red' | 'yellow' | 'cyan';
   category: string;
+  areaId?: string | null;
+  areaName?: string | null;
+  areaIcon?: string | null;
   dueDate?: number | null;
   noteId?: string | null;
   noteTitle?: string | null;
+  noteContent?: string | null;
   createdAt: number;
+  updatedAt?: number;
 }
 
 interface Store {
