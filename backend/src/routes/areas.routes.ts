@@ -20,6 +20,12 @@ function handleSupabaseError(res: Response, error: { message?: string }): boolea
   return true;
 }
 
+const DEFAULT_AREAS = [
+  { name: 'Work', icon: 'briefcase', is_default: true },
+  { name: 'Personal stuff', icon: 'home', is_default: true },
+  { name: 'Ideas / thoughts', icon: 'lightbulb', is_default: true },
+] as const;
+
 function mapRowToArea(row: { id: string; name: string; icon: string; created_at: string; is_default?: boolean }) {
   return {
     id: row.id,
@@ -30,12 +36,12 @@ function mapRowToArea(row: { id: string; name: string; icon: string; created_at:
   };
 }
 
-/** GET /api/areas — list areas for the current user */
+/** GET /api/areas — list areas for the current user. If user has no areas, creates default ones (Work, Personal stuff, Ideas). */
 areasRouter.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = getUserId(req);
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('areas')
       .select('*')
       .eq('user_id', userId)
@@ -43,6 +49,22 @@ areasRouter.get('/', async (req: Request, res: Response): Promise<void> => {
     if (error) {
       handleSupabaseError(res, error);
       return;
+    }
+    if (!data?.length) {
+      await supabase.from('areas').insert(
+        DEFAULT_AREAS.map((a) => ({ user_id: userId, name: a.name, icon: a.icon, is_default: a.is_default }))
+      );
+      const next = await supabase
+        .from('areas')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
+      data = next.data ?? [];
+      error = next.error;
+      if (error) {
+        handleSupabaseError(res, error);
+        return;
+      }
     }
     res.json((data ?? []).map(mapRowToArea));
   } catch (e) {

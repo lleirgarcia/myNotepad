@@ -99,6 +99,35 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   }
 }
 
+const MIGRATE_DONE_KEY = 'noted_migrate_done';
+
+/** Call after login: copy notes, todos, areas and whiteboard from the default account (API key) to the current Google/email account. Returns counts; 403 if already using API key. */
+export async function migrateFromDefaultAccount(): Promise<{
+  migrated: { areas: number; notes: number; todos: number; whiteboard: boolean };
+}> {
+  const res = await fetch(`${baseUrl}/api/auth/migrate-from-default`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    migrated?: { areas: number; notes: number; todos: number; whiteboard: boolean };
+  };
+  if (!res.ok) throw new Error(data.error ?? 'Migration failed');
+  if (!data.migrated) throw new Error('No migration result');
+  if (typeof window !== 'undefined') localStorage.setItem(MIGRATE_DONE_KEY, '1');
+  return { migrated: data.migrated };
+}
+
+export function hasMigrateBeenDone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(MIGRATE_DONE_KEY) === '1';
+}
+
+export function setMigrateDone(): void {
+  if (typeof window !== 'undefined') localStorage.setItem(MIGRATE_DONE_KEY, '1');
+}
+
 /** If this looks like a network error, throw a clear message instead. */
 function normalizeNetworkError(err: unknown): never {
   const msg = err instanceof Error ? err.message : String(err);

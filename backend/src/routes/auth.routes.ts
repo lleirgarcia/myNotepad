@@ -32,7 +32,9 @@ function isAllowedRedirectUri(uri: string): boolean {
     'http://localhost:5173',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .map((o) => o.replace(/\/$/, '')); // no trailing slash
   return allowed.some((origin) => uri === origin || uri.startsWith(origin + '/'));
 }
 
@@ -44,8 +46,13 @@ authRouter.get('/google', (req: Request, res: Response) => {
   }
   const redirectUri = typeof req.query.redirect_uri === 'string' ? req.query.redirect_uri : '';
   if (!isAllowedRedirectUri(redirectUri)) {
+    const hint =
+      config.frontendUrl && config.frontendUrl !== 'http://localhost:5173'
+        ? `FRONTEND_URL is set to ${config.frontendUrl}; redirect_uri received was: ${redirectUri || '(empty)'}`
+        : 'Set FRONTEND_URL in the backend to your app origin (e.g. https://yourapp.vercel.app).';
     res.status(400).json({
       error: 'Invalid or missing redirect_uri. Use your app origin (e.g. https://yourapp.vercel.app or http://localhost:5173).',
+      hint,
     });
     return;
   }
@@ -77,8 +84,23 @@ authRouter.get('/google/callback', async (req: Request, res: Response) => {
   }
   const code = typeof req.query.code === 'string' ? req.query.code : '';
   const stateRaw = typeof req.query.state === 'string' ? req.query.state : '';
+  const googleError = typeof req.query.error === 'string' ? req.query.error : '';
   if (!code) {
-    res.redirect(302, `${config.frontendUrl}/?error=missing_code`);
+    let redirectUriNoCode = config.frontendUrl;
+    try {
+      const state = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf8'));
+      redirectUriNoCode = state?.redirect_uri ?? config.frontendUrl;
+    } catch {
+      // use default
+    }
+    if (!isAllowedRedirectUri(redirectUriNoCode)) redirectUriNoCode = config.frontendUrl;
+    const base = redirectUriNoCode.replace(/\/$/, '');
+    const target = base.includes('/auth/callback') || base.includes('/app') ? base : base + '/';
+    if (googleError === 'access_denied') {
+      res.redirect(302, target);
+      return;
+    }
+    res.redirect(302, `${target}${target.includes('?') ? '&' : '?'}error=missing_code`);
     return;
   }
   let redirectUri: string;
@@ -324,6 +346,97 @@ authRouter.get('/me', apiKeyAuth, async (req: Request, res: Response) => {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed to load user';
+    res.status(500).json({ error: msg });
+  }
+});
+
+/** POST /api/auth/migrate-from-default — copy notes, todos, areas, whiteboard from DEFAULT_USER_ID to current user (JWT only). Use when you used to use API key locally and now sign in with Google. */
+authRouter.post('/migrate-from-default', apiKeyAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as RequestWithUserId).userId;
+    if (userId === config.defaultUserId) {
+      res.status(403).json({
+        error: 'Migration is only for accounts signed in with Google/email. You are already using the default account (API key).',
+      });
+      return;
+    }
+    const supabase = getSupabaseAdmin();
+    const defaultId = config.defaultUserId;
+    const areaIdMap = new Map<string, string>();
+    const noteIdMap = new Map<string, string>();
+    let areasCount = 0;
+    let notesCount = 0;
+    let todosCount = 0;
+    let whiteboardMigrated = false;
+
+    // 1) Copy areas (new ids for target user)
+    const { data: areas } = await supabase.from('areas').select('id, name, icon, is_default').eq('user_id', defaultId);
+    if (areas?.length) {
+      for (const a of areas) {
+        const { data: inserted } = await supabase.from('areas').insert({
+          user_id: userId,
+          name: a.name,
+          icon: a.icon ?? 'lightbulb',
+          is_default: a.is_default ?? false,
+        }).select('id').single();
+        if (inserted?.id) {
+          areaIdMap.set(a.id, inserted.id);
+          areasCount++;
+        }
+      }
+    }
+
+    // 2) Copy notes (new ids for target user)
+    const { data: notes } = await supabase.from('notes').select('id, title, content, position').eq('user_id', defaultId).order('position', { ascending: true });
+    if (notes?.length) {
+      for (const n of notes) {
+        const { data: inserted } = await supabase.from('notes').insert({
+          user_id: userId,
+          title: n.title ?? '',
+          content: n.content ?? '',
+          position: n.position ?? 0,
+        }).select('id').single();
+        if (inserted?.id) {
+          noteIdMap.set(n.id, inserted.id);
+          notesCount++;
+        }
+      }
+    }
+
+    // 3) Copy todos with remapped area_id and note_id
+    const { data: todos } = await supabase.from('todos').select('*').eq('user_id', defaultId);
+    if (todos?.length) {
+      for (const t of todos) {
+        await supabase.from('todos').insert({
+          user_id: userId,
+          text: t.text ?? '',
+          completed: t.completed ?? false,
+          color: t.color ?? 'cyan',
+          category: t.category ?? 'work',
+          due_date: t.due_date ?? null,
+          area_id: (t.area_id && areaIdMap.get(t.area_id)) || null,
+          note_id: (t.note_id && noteIdMap.get(t.note_id)) || null,
+        });
+        todosCount++;
+      }
+    }
+
+    // 4) Copy whiteboard
+    const { data: wb } = await supabase.from('whiteboard').select('content').eq('user_id', defaultId).maybeSingle();
+    if (wb?.content) {
+      const { error: wbErr } = await supabase.from('whiteboard').upsert(
+        { user_id: userId, content: wb.content, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+      if (!wbErr) whiteboardMigrated = true;
+    }
+
+    res.status(200).json({
+      migrated: { areas: areasCount, notes: notesCount, todos: todosCount, whiteboard: whiteboardMigrated },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Migration failed';
+    console.error('[auth] migrate-from-default error:', e);
     res.status(500).json({ error: msg });
   }
 });

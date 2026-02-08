@@ -12,6 +12,7 @@ export default defineConfig({
   reporter: process.env.CI ? 'dot' : 'list',
   use: {
     baseURL,
+    headless: true,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

@@ -3,7 +3,7 @@
  * Shown when the user is not authenticated; no landing page, no demo.
  * Supports Google OAuth and email/password (register + login).
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import notedLogo from '../assets/noted-logo.png';
@@ -46,15 +46,24 @@ export default function LoginRegisterOnly() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const errorCode = searchParams.get('error');
-  const errorMessage = errorCode
-    ? ERROR_MESSAGES[errorCode] ?? `Sign-in failed (${errorCode}). Try again.`
-    : null;
+  const errorMessage =
+    errorCode && errorCode !== 'missing_code'
+      ? ERROR_MESSAGES[errorCode] ?? `Sign-in failed (${errorCode}). Try again.`
+      : null;
 
   const clearError = () => {
     const next = new URLSearchParams(searchParams);
     next.delete('error');
     setSearchParams(next, { replace: true });
   };
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'missing_code') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('error');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();

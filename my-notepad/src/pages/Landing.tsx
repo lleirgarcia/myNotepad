@@ -83,7 +83,10 @@ export default function Landing() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const errorCode = searchParams.get('error');
-  const errorMessage = errorCode ? ERROR_MESSAGES[errorCode] ?? `Sign-in failed (${errorCode}). Try again.` : null;
+  const errorMessage =
+    errorCode && errorCode !== 'missing_code'
+      ? ERROR_MESSAGES[errorCode] ?? `Sign-in failed (${errorCode}). Try again.`
+      : null;
 
   const clearError = () => {
     const next = new URLSearchParams(searchParams);
@@ -102,6 +105,11 @@ export default function Landing() {
     if (token && token.length > 10) {
       navigate(`/auth/callback?token=${encodeURIComponent(token)}`, { replace: true });
       return;
+    }
+    if (searchParams.get('error') === 'missing_code') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('error');
+      navigate(next.toString() ? `/?${next}` : '/', { replace: true });
     }
   }, [navigate, searchParams]);
 
