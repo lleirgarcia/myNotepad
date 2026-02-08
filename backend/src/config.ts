@@ -7,6 +7,12 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 const backendApiKey = process.env.BACKEND_API_KEY?.trim();
 const defaultUserId = process.env.DEFAULT_USER_ID?.trim();
 
+// Google OAuth (optional: if set, login with Google is enabled)
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? '';
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? '';
+const jwtSecret = process.env.JWT_SECRET?.trim() ?? '';
+const frontendUrl = process.env.FRONTEND_URL?.trim() ?? '';
+
 if (!apiKey?.trim()) {
   throw new Error(
     'Missing OPENAI_API_KEY. Set it in .env or the environment. Get a key at https://platform.openai.com/api-keys'
@@ -44,4 +50,16 @@ export const config = {
   },
   backendApiKey: backendApiKey,
   defaultUserId: defaultUserId,
+  google: {
+    clientId: googleClientId,
+    clientSecret: googleClientSecret,
+    enabled: Boolean(googleClientId && googleClientSecret),
+  },
+  jwt: {
+    secret: jwtSecret,
+    enabled: Boolean(jwtSecret),
+  },
+  frontendUrl: frontendUrl || 'http://localhost:5173',
+  /** Optional: public backend URL (e.g. https://xxx.up.railway.app). If set, used as OAuth callback origin. */
+  backendUrl: process.env.BACKEND_URL?.trim() ?? '',
 } as const;

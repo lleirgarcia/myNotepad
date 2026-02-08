@@ -1,4 +1,4 @@
-# 🎉 Project Summary: My Notepad App
+# 🎉 Project Summary: Noted App
 
 ## What We Built
 

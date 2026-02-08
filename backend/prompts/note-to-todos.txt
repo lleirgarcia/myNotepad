@@ -29,6 +29,8 @@ From the note, extract every actionable TO-DO or task that would help achieve or
 - Implicit next steps (obvious follow-ups from the content).
 - Reminders and deadlines mentioned in the note.
 
+There is no fixed number of items: return as many TODOs as needed to cover the full note so nothing important is missed. A long or dense note can have many items; a short note may have few. Do not limit yourself to a small number—be thorough.
+
 Order the list by priority: most urgent or foundational first, then medium, then lower priority. If priority is unclear, put the most important for the note’s goal first.
 
 Each TO-DO must be a single, clear, short sentence (one actionable item).
@@ -48,7 +50,7 @@ Respond with a single JSON object only. No markdown, no code fence, no extra tex
 
 Rules:
 - "area" must be exactly one of the six values above (lowercase).
-- "todo_list" must be an array of strings, ordered by priority (first = highest priority).
+- "todo_list" must be an array of strings, ordered by priority (first = highest priority). No maximum length—include every actionable item from the note.
 - If the note is empty or has no actionable content, return: {"area":"personal","todo_list":[]}.
 - If the note spans more than one area, pick the dominant one.
-- Be thorough: convert the whole note into TODOs so nothing important is missed.
+- Be thorough: convert the whole note into TODOs so nothing important is missed. Prefer more items over fewer when the note has a lot of content.

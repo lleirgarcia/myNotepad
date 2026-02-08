@@ -1,6 +1,8 @@
-# 📝 My Notepad - TODO & Notes App
+# 📝 Noted — TODO & Notes App
 
 A beautiful, simple, and powerful note-taking and TODO management app designed to keep your mind clean and organized.
+
+**Routes:** `/` — minimal landing (SEO, what we are); `/app` — the app (notes + tasks). On native (iOS/Android), the app opens directly at `/app`.
 
 ## ✨ Features
 
@@ -92,6 +94,38 @@ npm run dev
 ### Development Server
 The app is now running at: **http://localhost:5173/**
 
+### Tests
+
+Unit tests use [Vitest](https://vitest.dev/) and [React Testing Library](https://testing-library.com/react). Capacitor and backend are mocked so tests run without native or API dependencies.
+
+```bash
+cd my-notepad
+npm run test          # run once
+npm run test:watch    # watch mode
+npm run test:coverage # coverage report
+```
+
+Tests cover: `cn` util, Zustand store, `TodoList` (add, toggle, filter, delete), `NotesList` (textarea, Process with AI, stats), `Landing` (content and link), and `App` (tabs, header).
+
+### Feature (E2E) tests
+
+[Playwright](https://playwright.dev/) runs end-to-end tests in a real browser. They use the **demo app** at `/app` (no backend required).
+
+```bash
+# Start the dev server in one terminal, then in another:
+cd my-notepad
+npm run test:e2e        # run all E2E (Chromium, Firefox, WebKit)
+npm run test:e2e:ui    # run with Playwright UI
+
+# Or let Playwright start the server (ensure port 5173 is free):
+npm run test:e2e
+
+# Run against an already-running dev server:
+PLAYWRIGHT_TEST_BASE_URL=http://localhost:5173 npm run test:e2e
+```
+
+**E2E coverage:** Landing (heading, link to app, pricing, log in), App Tasks (add task, empty submit, filter All/Done, complete task, delete task, priority buttons), App Notes (switch tab, textarea, Process with AI disabled when empty / enabled with content, AI insights).
+
 ### Build for Production
 
 ```bash
@@ -140,8 +174,9 @@ my-notepad/
 │   ├── components/          # React components
 │   │   ├── TodoList.tsx    # TODO list component
 │   │   └── NotesList.tsx   # Notes component
-│   ├── store/              # State management
+│   ├── store/               # State management
 │   │   └── useStore.ts     # Zustand store with todos & notes
+│   ├── test/                # Test setup (Vitest + jsdom)
 │   ├── App.tsx             # Main app component
 │   ├── index.css           # Global styles (Tailwind)
 │   └── main.tsx            # App entry point

@@ -1,0 +1,14 @@
+{
+  "name": "my-notepad-for-notes-and-todo",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm run test",
+    "test:frontend": "cd my-notepad && npm run test",
+    "test:e2e": "cd my-notepad && npm run test:e2e",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

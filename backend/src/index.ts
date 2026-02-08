@@ -1,24 +1,15 @@
-import cors from 'cors';
-import express from 'express';
 import { config } from './config.js';
-import { apiKeyAuth } from './middleware/apiKeyAuth.js';
-import { openaiRouter } from './routes/openai.routes.js';
-import { todosRouter } from './routes/todos.routes.js';
-import { whiteboardRouter } from './routes/whiteboard.routes.js';
+import { app } from './app.js';
+import { ensureDefaultUser } from './lib/ensureDefaultUser.js';
 
-const app = express();
+async function start() {
+  await ensureDefaultUser();
+  app.listen(config.server.port, () => {
+    console.log(`Backend running at http://localhost:${config.server.port}`);
+  });
+}
 
-app.use(cors());
-app.use(express.json());
-
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'my-notepad-backend' });
-});
-
-app.use('/api/openai', openaiRouter);
-app.use('/api/todos', apiKeyAuth, todosRouter);
-app.use('/api/whiteboard', apiKeyAuth, whiteboardRouter);
-
-app.listen(config.server.port, () => {
-  console.log(`Backend running at http://localhost:${config.server.port}`);
+start().catch((e) => {
+  console.error(e);
+  process.exit(1);
 });

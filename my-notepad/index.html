@@ -2,18 +2,44 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/png" href="./noted-logo.png?v=2" />
+    <link rel="apple-touch-icon" href="./noted-logo.png?v=2" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, viewport-fit=cover, user-scalable=yes" />
     <meta name="theme-color" content="#0c0a09" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="My Notepad" />
+    <meta name="apple-mobile-web-app-title" content="Noted" />
+    <meta name="format-detection" content="telephone=no" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>My Notepad</title>
+
+    <!-- SEO: priority-based todo list, not long-term planning -->
+    <title>Noted — Ideas, Todos & Priority List | Free Todo App</title>
+    <meta name="description" content="Express ideas, create todos, order by priority. Noted is a priority list app—like kanban in list form. Mark tasks done as you go. Web, iOS, Android. Free." />
+    <meta name="robots" content="index, follow" />
+    <!-- Replace noted.app with your production domain -->
+    <link rel="canonical" href="https://noted.app/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Noted" />
+    <meta property="og:title" content="Noted — Ideas, Todos & Priority List" />
+    <meta property="og:description" content="Express ideas, create todos, order by priority. Priority list app—mark tasks done as you go. Not long-term planning." />
+    <meta property="og:image" content="https://noted.app/app-screenshot.png" />
+    <meta property="og:image:alt" content="Noted app: priority todo list" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Noted — Ideas, Todos & Priority List" />
+    <meta name="twitter:description" content="Express ideas, create todos, order by priority. Priority list—mark tasks done as you go." />
+    <meta name="twitter:image" content="https://noted.app/app-screenshot.png" />
+    <meta name="twitter:image:alt" content="Noted app: priority todo list" />
   </head>
   <body>
+    <style>.skip-link{position:absolute;left:-9999px;z-index:9999;padding:1rem 1.25rem;background:#f59e0b;color:#0c0a09;font-weight:600;font-size:0.875rem;text-decoration:none;}.skip-link:focus{left:0;top:0;outline:2px solid #0c0a09;outline-offset:2px;}</style>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

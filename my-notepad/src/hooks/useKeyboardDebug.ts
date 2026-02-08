@@ -9,7 +9,7 @@ const LOG = '[Keyboard Debug]';
  * Debug keyboard on iOS:
  * 1. iPhone conectado por cable al Mac
  * 2. En iPhone: Ajustes > Safari > Avanzado > Activar "Inspector web"
- * 3. En Mac: Safari > Desarrollar > [tu iPhone] > [My Notepad / localhost]
+ * 3. En Mac: Safari > Desarrollar > [tu iPhone] > [Noted / localhost]
  * 4. Toca el input "What needs to be done?" y mira la consola
  *
  * Si ves keyboardWillShow/keyboardDidShow con height > 0 → el teclado se dispara pero no se ve (problema de vista)
@@ -23,7 +23,7 @@ export function useKeyboardDebug() {
     }
 
     console.log(LOG, 'Plataforma:', Capacitor.getPlatform());
-    console.log(LOG, 'Conecta Safari (Mac): Desarrollar > [iPhone] > [My Notepad]');
+    console.log(LOG, 'Conecta Safari (Mac): Desarrollar > [iPhone] > [Noted]');
 
     const handles: PluginListenerHandle[] = [];
 

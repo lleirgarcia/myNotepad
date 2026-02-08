@@ -19,11 +19,11 @@ Cuando el teclado no aparece al tocar el input en el iPhone, puedes ver qué est
 3. **En el Mac**
    - Abre **Safari** (no Chrome).
    - Menú **Desarrollar** (si no lo ves: Safari → Preferencias → Avanzado → "Mostrar menú Desarrollar").
-   - Desarrollar → **[nombre de tu iPhone]** → elige la URL de tu app (ej. **My Notepad** o **localhost**).
+   - Desarrollar → **[nombre de tu iPhone]** → elige la URL de tu app (ej. **Noted** o **localhost**).
    - Se abre la ventana del **Inspector web** con la pestaña **Consola**.
 
 4. **En el iPhone**
-   - Abre la app My Notepad.
+   - Abre la app Noted.
    - Toca el campo **"What needs to be done?"**.
 
 5. **En la Consola (Mac)** busca mensajes que empiecen por `[Keyboard Debug]`:
@@ -58,7 +58,7 @@ Luego abre de nuevo la app en el iPhone desde Xcode (o reinstala si hace falta).
 
 1. Connect the iPhone to the Mac with a USB cable.
 2. On iPhone: **Settings → Safari → Advanced** → turn on **Web Inspector**.
-3. On Mac: open **Safari** → **Develop** (enable in Safari → Preferences → Advanced if needed) → **[Your iPhone]** → select **My Notepad** (or the app URL).
+3. On Mac: open **Safari** → **Develop** (enable in Safari → Preferences → Advanced if needed) → **[Your iPhone]** → select **Noted** (or the app URL).
 4. On iPhone: open the app and tap the **"What needs to be done?"** field.
 5. In the Safari Web Inspector **Console** (on Mac), look for lines starting with `[Keyboard Debug]`:
    - **"Todo input focused"** = the input received focus.
