@@ -2,7 +2,16 @@
 
 To enable "Sign in with Google" you need credentials in Google Cloud and env vars in the backend.
 
-**Why redirect to the backend?** The authorization code is sent by Google to the `redirect_uri`. If that URL is the frontend, the code appears in the browser (URL, history, referrer). Best practice is to use the **backend** as `redirect_uri`: Google sends the code only to the server, the backend exchanges it (with `client_secret`), then redirects the user to the frontend with the JWT. The frontend never sees the code.
+## 0. OAuth consent screen: show "Noted" instead of Railway URL
+
+Google shows the **redirect_uri domain** on the consent screen (e.g. "Vas a volver a iniciar sesión en mynotepad-production.up.railway.app"). To show your app name/domain instead:
+
+1. **Application name**  
+   In [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **OAuth consent screen** → set **Application name** to **Noted** (and Support email, Developer contact). Google may still show the redirect domain unless you use option 2.
+
+2. **Show app domain on consent (recommended)**  
+   Set in your backend (e.g. Railway) the env var **`OAUTH_CONSENT_SHOW_APP_DOMAIN=true`**. Then the backend sends your **frontend** URL as `redirect_uri` to Google, so the consent screen shows your app domain (e.g. `noted.vercel.app` or your custom domain) instead of the Railway backend URL.  
+   When using this, in Google Console **Authorized redirect URIs** you must add your **frontend** callback URLs (see section 1 below). The authorization code is then sent to the frontend; the frontend immediately calls the backend to exchange it (no code is shown to the user).
 
 ## 1. Google Cloud Console
 
@@ -12,9 +21,13 @@ To enable "Sign in with Google" you need credentials in Google Cloud and env var
 4. **Authorized JavaScript origins** (your frontend):
    - `http://localhost:5173`
    - `https://your-app.vercel.app` (or your production frontend URL, no trailing slash)
-5. **Authorized redirect URIs** — must be your **backend** callback URL (Google redirects the user here with the code; the backend exchanges it and redirects to your frontend with the JWT). Add:
-   - Local: `http://localhost:3000/api/auth/google/callback` (or the port your backend uses)
-   - Production: `https://YOUR-RAILWAY-URL/api/auth/google/callback` (e.g. `https://my-notepad-api.up.railway.app/api/auth/google/callback`, no trailing slash)
+5. **Authorized redirect URIs** — depends on `OAUTH_CONSENT_SHOW_APP_DOMAIN`:
+   - **If `OAUTH_CONSENT_SHOW_APP_DOMAIN=true`** (consent shows your app domain): add your **frontend** callback URLs:
+     - `http://localhost:5173/auth/callback`
+     - `https://your-app.vercel.app/auth/callback` (no trailing slash)
+   - **If not set** (default, code only on backend): add your **backend** callback URLs:
+     - Local: `http://localhost:3000/api/auth/google/callback`
+     - Production: `https://YOUR-RAILWAY-URL/api/auth/google/callback` (no trailing slash)
 6. Create and copy **Client ID** and **Client secret**.
 
 ## 2. Backend .env
@@ -33,10 +46,13 @@ For production (Railway):
 ```env
 FRONTEND_URL=https://your-app.vercel.app
 BACKEND_URL=https://your-app.up.railway.app
+# Optional: consent screen shows your app domain instead of Railway
+OAUTH_CONSENT_SHOW_APP_DOMAIN=true
 ```
 
 - **JWT_SECRET**: use a long random string (e.g. `openssl rand -base64 32`).
-- **BACKEND_URL**: set in production so the OAuth callback URL sent to Google is correct (Railway often hides the real host).
+- **BACKEND_URL**: set in production so the OAuth callback URL sent to Google is correct when not using `OAUTH_CONSENT_SHOW_APP_DOMAIN`.
+- **OAUTH_CONSENT_SHOW_APP_DOMAIN**: set to `true` so the Google consent screen shows your app domain (e.g. noted.vercel.app) instead of the Railway URL. When true, add your **frontend** `/auth/callback` URLs in Google Console Authorized redirect URIs.
 
 ## 3. Database
 
@@ -64,9 +80,6 @@ This creates the `users` table used when someone signs in with Google.
 
 If Google shows "Acceso bloqueado" / "redirect_uri_mismatch", the `redirect_uri` sent to Google does not match any **Authorized redirect URI** in your OAuth client.
 
-- The app sends your **backend** callback URL to Google (e.g. `http://localhost:3000/api/auth/google/callback` or `https://your-api.up.railway.app/api/auth/google/callback`).
-- In Google Cloud Console → Credentials → your OAuth 2.0 Client ID → **Authorized redirect URIs**, add **exactly**:
-  - Local: `http://localhost:3000/api/auth/google/callback` (same port as your backend, no trailing slash).
-  - Production: `https://YOUR-RAILWAY-URL/api/auth/google/callback` (the public URL of your backend, no trailing slash).
-- Ensure `BACKEND_URL` is set in production (Railway) so the backend builds the correct callback URL.
+- **If `OAUTH_CONSENT_SHOW_APP_DOMAIN=true`**: the app sends your **frontend** URL (e.g. `https://your-app.vercel.app/auth/callback`). Add that exact URL in Google Console → Authorized redirect URIs.
+- **If not set**: the app sends your **backend** callback URL (e.g. `https://your-api.up.railway.app/api/auth/google/callback`). Add that exact URL. Ensure `BACKEND_URL` is set in Railway.
 - Save and wait a minute; then try again.

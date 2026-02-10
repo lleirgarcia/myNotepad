@@ -56,17 +56,24 @@ authRouter.get('/google', (req: Request, res: Response) => {
     });
     return;
   }
-  // Best practice: redirect_uri is the backend callback. Google sends the code only to the backend; the backend then redirects the user to the frontend with the JWT. The frontend URL (where to send the user after login) is stored in state.
   const state = Buffer.from(JSON.stringify({ redirect_uri: redirectUri }), 'utf8').toString('base64url');
-  let backendOrigin = config.backendUrl || `${req.protocol}://${req.get('host') ?? ''}`;
-  backendOrigin = backendOrigin.replace(/\/$/, '');
-  if (!backendOrigin.startsWith('http')) backendOrigin = `https://${backendOrigin}`;
-  else if (backendOrigin.startsWith('http://') && !backendOrigin.includes('localhost'))
-    backendOrigin = backendOrigin.replace(/^http:\/\//, 'https://');
-  const callbackUrl = `${backendOrigin}/api/auth/google/callback`;
+  let redirectUriForGoogle: string;
+  if (config.oauthConsentShowAppDomain) {
+    const frontendRedirectUri = redirectUri.replace(/\/$/, '');
+    redirectUriForGoogle = frontendRedirectUri.includes('/auth/callback')
+      ? frontendRedirectUri
+      : frontendRedirectUri + '/auth/callback';
+  } else {
+    let backendOrigin = config.backendUrl || `${req.protocol}://${req.get('host') ?? ''}`;
+    backendOrigin = backendOrigin.replace(/\/$/, '');
+    if (!backendOrigin.startsWith('http')) backendOrigin = `https://${backendOrigin}`;
+    else if (backendOrigin.startsWith('http://') && !backendOrigin.includes('localhost'))
+      backendOrigin = backendOrigin.replace(/^http:\/\//, 'https://');
+    redirectUriForGoogle = `${backendOrigin}/api/auth/google/callback`;
+  }
   const params = new URLSearchParams({
     client_id: config.google.clientId,
-    redirect_uri: callbackUrl,
+    redirect_uri: redirectUriForGoogle,
     response_type: 'code',
     scope: 'openid email profile',
     state,

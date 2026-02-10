@@ -486,9 +486,29 @@ const TodoList = () => {
     }
     for (const group of map.values()) {
       group.todos.sort((a, b) => {
+        // Keep the synthetic "original note" holder as the first item in the group
+        const aIsOriginal = Boolean(a.noteContent);
+        const bIsOriginal = Boolean(b.noteContent);
+        if (aIsOriginal && !bIsOriginal) return -1;
+        if (!aIsOriginal && bIsOriginal) return 1;
+
+        // 1) Inside each note group, sort by due date when present (earlier first)
+        const aHasDate = typeof a.dueDate === 'number' && Number.isFinite(a.dueDate);
+        const bHasDate = typeof b.dueDate === 'number' && Number.isFinite(b.dueDate);
+        if (aHasDate && bHasDate && a.dueDate !== b.dueDate) {
+          return (a.dueDate as number) - (b.dueDate as number);
+        }
+        if (aHasDate !== bHasDate) {
+          // Tasks with a date come before those without a date
+          return aHasDate ? -1 : 1;
+        }
+
+        // 2) Then by priority color (red > yellow > cyan)
         const pa = COLOR_PRIORITY_ORDER[a.color];
         const pb = COLOR_PRIORITY_ORDER[b.color];
         if (pa !== pb) return pa - pb;
+
+        // 3) Finally, newest created first as a stable fallback
         return b.createdAt - a.createdAt;
       });
     }

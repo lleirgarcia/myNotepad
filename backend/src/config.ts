@@ -62,4 +62,6 @@ export const config = {
   frontendUrl: frontendUrl || 'http://localhost:5173',
   /** Optional: public backend URL (e.g. https://xxx.up.railway.app). If set, used as OAuth callback origin. */
   backendUrl: process.env.BACKEND_URL?.trim() ?? '',
+  /** If true, send frontend URL as redirect_uri to Google so the consent screen shows your app domain (e.g. noted.vercel.app) instead of the backend Railway URL. Google will redirect to the frontend with the code; the frontend calls POST /api/auth/google/exchange. */
+  oauthConsentShowAppDomain: process.env.OAUTH_CONSENT_SHOW_APP_DOMAIN === 'true',
 } as const;
