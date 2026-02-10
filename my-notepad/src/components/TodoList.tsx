@@ -139,6 +139,7 @@ const TodoList = () => {
   const priorityPopoverRef = useRef<HTMLDivElement>(null);
   const [openCategoryTodoId, setOpenCategoryTodoId] = useState<string | null>(null);
   const categoryPopoverRef = useRef<HTMLDivElement>(null);
+  const [openDateTodo, setOpenDateTodo] = useState<Todo | null>(null);
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingTodoText, setEditingTodoText] = useState('');
   const editInputRef = useRef<HTMLTextAreaElement>(null);
@@ -614,6 +615,19 @@ const TodoList = () => {
       setOpenPriorityTodoId(null);
     } catch {
       setSyncError('Failed to update priority');
+    }
+  };
+
+  const handleTodoDueDateChange = async (todo: Todo, newDate: Date | null) => {
+    const dueDate = newDate ? newDate.getTime() : null;
+    setOpenDateTodo(null);
+    updateTodo({ ...todo, dueDate });
+    if (!backendUrl) return;
+    try {
+      const updated = await backendApi.updateTodo(todo.id, { dueDate });
+      updateTodo(updated);
+    } catch {
+      setSyncError('Failed to update date');
     }
   };
 
@@ -1259,12 +1273,28 @@ const TodoList = () => {
                               {todo.text}
                             </button>
                           )}
-                          {todo.dueDate != null && (
-                            <span className="shrink-0 flex items-center gap-1 text-xs text-zinc-500" title={formatDueDate(todo.dueDate)}>
-                              <Calendar className="w-3 h-3" />
-                              {formatDueDate(todo.dueDate)}
-                            </span>
-                          )}
+                          <div className="relative shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDateTodo((prev) => (prev?.id === todo.id ? null : todo));
+                              }}
+                              aria-label={todo.dueDate != null ? `Due: ${formatDueDate(todo.dueDate)}. Click to change` : 'Add due date'}
+                              title={todo.dueDate != null ? formatDueDate(todo.dueDate) : 'Add due date'}
+                              className={cn(
+                                'shrink-0 flex items-center gap-1 text-xs rounded-md min-h-[44px] min-w-[44px] px-2 py-1.5 transition-colors justify-center',
+                                todo.dueDate != null
+                                  ? 'text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/10'
+                                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/50'
+                              )}
+                            >
+                              <Calendar className="w-3 h-3 shrink-0" />
+                              {todo.dueDate != null ? (
+                                <span className="truncate max-w-[5rem]">{formatDueDate(todo.dueDate)}</span>
+                              ) : null}
+                            </button>
+                          </div>
                           <div className="relative shrink-0" ref={openCategoryTodoId === todo.id ? categoryPopoverRef : undefined}>
                             <button
                               type="button"
@@ -1385,6 +1415,45 @@ const TodoList = () => {
           </div>
         </div>
       )}
+
+      {/* Date picker modal – portaled so it always stays inside the app */}
+      {openDateTodo &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-sm"
+            onClick={() => setOpenDateTodo(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Pick due date"
+          >
+            <div
+              className="w-full max-w-[280px] max-h-[min(400px,calc(100vh-2rem))] overflow-auto rounded-xl bg-zinc-800 border border-zinc-600 shadow-xl p-3 flex flex-col gap-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="datepicker-dark">
+                <DatePicker
+                  selected={openDateTodo.dueDate != null ? new Date(openDateTodo.dueDate) : null}
+                  onChange={(date) => handleTodoDueDateChange(openDateTodo, date)}
+                  onSelect={(date) => handleTodoDueDateChange(openDateTodo, date)}
+                  inline
+                  showMonthDropdown
+                  showYearDropdown
+                  dropdownMode="select"
+                  dateFormat="MMM d, yyyy"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTodoDueDateChange(openDateTodo, null)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-400 hover:text-zinc-200 text-xs"
+              >
+                <X className="w-3 h-3" />
+                Clear date
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Toast feedback – portaled so it centers in the viewport */}
       {toast &&

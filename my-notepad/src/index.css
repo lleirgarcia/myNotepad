@@ -237,6 +237,11 @@ body {
   background: theme(colors.zinc.800);
   border-color: theme(colors.zinc.700);
   font-family: inherit;
+  /* Static height: always reserve space for 6 weeks so the popup doesn't grow/shrink by month */
+  min-height: 18.5rem;
+}
+.datepicker-dark .react-datepicker__month-container {
+  min-height: 16rem;
 }
 
 .datepicker-dark .react-datepicker__header {
@@ -266,8 +271,16 @@ body {
   color: theme(colors.zinc.100);
 }
 
-.datepicker-dark .react-datepicker__day--selected,
+.datepicker-dark .react-datepicker__day--selected {
+  /* Selected day: darker highlight */
+  background: theme(colors.amber.600) !important;
+  color: theme(colors.zinc.950) !important;
+}
+.datepicker-dark .react-datepicker__day--selected:hover {
+  background: theme(colors.amber.700) !important;
+}
 .datepicker-dark .react-datepicker__day--keyboard-selected {
+  /* Keyboard focus day: slightly lighter than selected */
   background: theme(colors.amber.500) !important;
   color: theme(colors.zinc.950) !important;
 }

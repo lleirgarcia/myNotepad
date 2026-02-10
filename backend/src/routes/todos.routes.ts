@@ -128,7 +128,7 @@ todosRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => 
   try {
     const userId = getUserId(req);
     const id = req.params.id;
-    const body = req.body as { completed?: boolean; text?: string; color?: string; category?: string; areaId?: string | null };
+    const body = req.body as { completed?: boolean; text?: string; color?: string; category?: string; areaId?: string | null; dueDate?: number | null };
     const update: Record<string, unknown> = {};
     if (typeof body.completed === 'boolean') update.completed = body.completed;
     if (typeof body.text === 'string') update.text = body.text;
@@ -136,6 +136,7 @@ todosRouter.patch('/:id', async (req: Request, res: Response): Promise<void> => 
       update.color = body.color;
     }
     if (body.areaId !== undefined) update.area_id = body.areaId?.trim() || null;
+    if (body.dueDate !== undefined) update.due_date = body.dueDate != null && Number.isFinite(body.dueDate) ? new Date(body.dueDate).toISOString() : null;
     if (Object.keys(update).length === 0) {
       res.status(400).json({ error: 'No updates provided' });
       return;
