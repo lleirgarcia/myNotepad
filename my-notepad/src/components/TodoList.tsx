@@ -1433,8 +1433,8 @@ const TodoList = () => {
               <div className="datepicker-dark">
                 <DatePicker
                   selected={openDateTodo.dueDate != null ? new Date(openDateTodo.dueDate) : null}
-                  onChange={(date) => handleTodoDueDateChange(openDateTodo, date)}
-                  onSelect={(date) => handleTodoDueDateChange(openDateTodo, date)}
+                  onChange={(date: Date | null) => handleTodoDueDateChange(openDateTodo, date)}
+                  onSelect={(date: Date | null) => handleTodoDueDateChange(openDateTodo, date)}
                   inline
                   showMonthDropdown
                   showYearDropdown

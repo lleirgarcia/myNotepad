@@ -250,7 +250,14 @@ export async function createTodo(todo: {
 
 export async function updateTodo(
   id: string,
-  updates: { completed?: boolean; text?: string; color?: Todo['color']; category?: string; areaId?: string | null }
+  updates: {
+    completed?: boolean;
+    text?: string;
+    color?: Todo['color'];
+    category?: string;
+    areaId?: string | null;
+    dueDate?: number | null;
+  }
 ): Promise<Todo> {
   try {
     const res = await fetch(`${baseUrl}/api/todos/${id}`, {
